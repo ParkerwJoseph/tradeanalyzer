@@ -7,7 +7,6 @@ import {
   Settings,
   User
 } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components2/ui/avatar";
 
 interface PageTemplateProps {
   children?: React.ReactNode;
@@ -75,12 +74,7 @@ const PageTemplate = ({ children, title, description }: PageTemplateProps) => {
               <button className="p-2 text-gray-500 hover:text-black transition-colors">
                 <Settings size={20} />
               </button>
-              <Avatar className="h-8 w-8">
-                
-                <AvatarFallback>
-                  <User size={20} />
-                </AvatarFallback>
-              </Avatar>
+             
             </div>
           </div>
         </div>
