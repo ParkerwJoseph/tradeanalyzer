@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
+import PageTemplate from "@/components/layout/PageTemplate"
+
 
 interface NewsArticle {
   title: string;
@@ -68,6 +70,7 @@ const StockNews: React.FC = () => {
 
   // Render the component
   return (
+    <PageTemplate title='' description=''>
     <div className="news-container">
       <h1 className="news-title">Stock News</h1>
 
@@ -105,6 +108,7 @@ const StockNews: React.FC = () => {
         ))}
       </div>
     </div>
+    </PageTemplate>
   );
 };
 
