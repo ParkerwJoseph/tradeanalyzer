@@ -1,5 +1,12 @@
-import TradeAnalyzer from '@/components/TradeAnalyzerClient'
+// In any page file (e.g., app/components/live/page.tsx)
+import PageTemplate from "@/components/layout/PageTemplate"
 
-export default function Page() {
-  return <TradeAnalyzer />
+const SettingsPage = () => {
+  return (
+    <PageTemplate title="Settings" description="">
+      {/* Your live view content */}
+    </PageTemplate>
+  )
 }
+
+export default SettingsPage
