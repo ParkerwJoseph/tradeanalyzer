@@ -1,13 +1,5 @@
-// In any page file (e.g., app/components/live/page.tsx)
-import PageTemplate from "@/components/layout/PageTemplate"
+import TradeAnalyzer from '@/components/TradeAnalyzerClient'
 
-const SettingsPage = () => {
-  return (
-   <div>
-
-    <h1>Hello fucker</h1>
-   </div>
-  )
+export default function Page() {
+  return <TradeAnalyzer />
 }
-
-export default SettingsPage
