@@ -265,7 +265,7 @@ const WatchlistPage = () => {
   }, [watchlist])
 
   return (
-    <PageLayout title='Watchlist' description='Monitor your favorite stocks'>
+    <PageLayout title='' description=''>
       <div className="container mx-auto p-6 space-y-8">
         <div className="flex justify-between items-center">
           <div>

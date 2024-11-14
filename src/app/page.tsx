@@ -393,10 +393,7 @@ function TradeAnalyzer() {
           </div>
           <div className="flex items-center gap-4">
             <UploadDialog onUpload={handleFileUpload} />
-            <Avatar className="h-10 w-10">
-              <AvatarImage src="/placeholder.svg" />
-              <AvatarFallback>EM</AvatarFallback>
-            </Avatar>
+            
           </div>
         </div>
 

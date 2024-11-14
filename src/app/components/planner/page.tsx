@@ -163,7 +163,7 @@ const StockPlanner = () => {
   };
 
   return (
-    <PageTemplate title="Settings" description="">
+    <PageTemplate title="" description="">
     <div className="container mx-auto p-6 space-y-8">
       <Card>
         <CardHeader>
