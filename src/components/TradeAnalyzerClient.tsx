@@ -22,21 +22,20 @@ import {
   BookText,
   BellIcon
 } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components2/ui/card"
-import { Button } from "@/components2/ui/button"
-import { Input } from "@/components2/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components2/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components2/ui/tabs"
-import { ScrollArea } from "@/components2/ui/scroll-area"
-import { Skeleton } from "@/components2/ui/skeleton"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Skeleton } from "@/components/ui/skeleton"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { motion } from "framer-motion"
-
-
 
 interface TradeAnalyzerProps {
   children?: React.ReactNode
 }
+
 
 interface Trade {
   symbol: string

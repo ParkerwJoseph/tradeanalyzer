@@ -1,6 +1,5 @@
-// app/page.tsx
-import  TradeAnalyzerClient  from '@/components2/TradeAnalyzerClient'
+import TradeAnalyzer from '@/components/TradeAnalyzerClient'
 
 export default function Page() {
-  return <TradeAnalyzerClient />
+  return <TradeAnalyzer />
 }

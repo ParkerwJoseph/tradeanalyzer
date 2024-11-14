@@ -1,11 +1,11 @@
 'use client'
 import React, { useState } from 'react';
-import PageTemplate from "@/components2/layout/PageTemplate"
+import PageTemplate from "@/components/layout/PageTemplate"
 
 import { Search, Target, TrendingUp, DollarSign, Pencil, Check, X } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components2/ui/card';
-import { Input } from '@/components2/ui/input';
-import { Button } from '@/components2/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 interface StockPlan {
   symbol: string;

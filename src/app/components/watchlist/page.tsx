@@ -2,12 +2,12 @@
 
 import React, { useState, useCallback } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import PageLayout from '@/components2/layout/PageTemplate'
+import PageLayout from '@/components/layout/PageTemplate'
 import { Search, Plus, Trash2, ArrowUpRight, ArrowDownRight, Bell } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from "@/components2/ui/card"
-import { Input } from "@/components2/ui/input"
-import { Button } from "@/components2/ui/button"
-import { ScrollArea } from "@/components2/ui/scroll-area"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { debounce } from 'lodash'
 
 interface YahooFinanceResponse {
