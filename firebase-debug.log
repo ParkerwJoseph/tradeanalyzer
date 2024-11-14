@@ -1,0 +1,266 @@
+[debug] [2024-11-13T21:33:28.228Z] ----------------------------------------------------------------------
+[debug] [2024-11-13T21:33:28.230Z] Command:       /usr/local/bin/firebase /Users/parkerjoseph/.cache/firebase/tools/lib/node_modules/firebase-tools/lib/bin/firebase deploy
+[debug] [2024-11-13T21:33:28.231Z] CLI Version:   11.19.0
+[debug] [2024-11-13T21:33:28.231Z] Platform:      darwin
+[debug] [2024-11-13T21:33:28.231Z] Node Version:  v16.16.0
+[debug] [2024-11-13T21:33:28.232Z] Time:          Wed Nov 13 2024 16:33:28 GMT-0500 (Eastern Standard Time)
+[debug] [2024-11-13T21:33:28.233Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-11-13T21:33:28.345Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-11-13T21:33:28.347Z] > authorizing via signed-in user (parkerjoseph@pwjmedia.com)
+[debug] [2024-11-13T21:33:28.348Z] [iam] checking project shopify-webscraper for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-11-13T21:33:28.352Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions [none]
+[debug] [2024-11-13T21:33:28.352Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions x-goog-quota-user=projects/shopify-webscraper
+[debug] [2024-11-13T21:33:28.353Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-11-13T21:33:28.738Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions 200
+[debug] [2024-11-13T21:33:28.741Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-11-13T21:33:28.744Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper [none]
+[debug] [2024-11-13T21:33:29.218Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper 200
+[debug] [2024-11-13T21:33:29.219Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper {"projectId":"shopify-webscraper","projectNumber":"183674215962","displayName":"Shopify-webscraper","name":"projects/shopify-webscraper","resources":{"hostingSite":"shopify-webscraper","realtimeDatabaseInstance":"shopify-webscraper-default-rtdb","storageBucket":"shopify-webscraper.appspot.com","locationId":"us-central"},"state":"ACTIVE","etag":"1_177d23a1-badc-4022-a565-c21808e5b068"}
+[debug] [2024-11-13T21:33:35.591Z] ReferenceError: Request is not defined
+    at Object.<anonymous> (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/web/spec-extension/request.js:28:27)
+    at Module._compile (node:internal/modules/cjs/loader:1105:14)
+    at Module._compile (pkg/prelude/bootstrap.js:1894:32)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1159:10)
+    at Module.load (node:internal/modules/cjs/loader:981:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:822:12)
+    at Module.require (node:internal/modules/cjs/loader:1005:19)
+    at Module.require (pkg/prelude/bootstrap.js:1855:31)
+    at Module.mod.require (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/cjs/helpers:102:18)
+    at Object.<anonymous> (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/web/spec-extension/adapters/next-request.js:37:18)
+    at Module._compile (node:internal/modules/cjs/loader:1105:14)
+    at Module._compile (pkg/prelude/bootstrap.js:1894:32)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1159:10)
+    at Module.load (node:internal/modules/cjs/loader:981:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:822:12)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-11-13T21:34:23.142Z] ----------------------------------------------------------------------
+[debug] [2024-11-13T21:34:23.144Z] Command:       /usr/local/bin/firebase /Users/parkerjoseph/.cache/firebase/tools/lib/node_modules/firebase-tools/lib/bin/firebase deploy
+[debug] [2024-11-13T21:34:23.144Z] CLI Version:   11.19.0
+[debug] [2024-11-13T21:34:23.145Z] Platform:      darwin
+[debug] [2024-11-13T21:34:23.145Z] Node Version:  v16.16.0
+[debug] [2024-11-13T21:34:23.150Z] Time:          Wed Nov 13 2024 16:34:23 GMT-0500 (Eastern Standard Time)
+[debug] [2024-11-13T21:34:23.150Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-11-13T21:34:23.258Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-11-13T21:34:23.263Z] > authorizing via signed-in user (parkerjoseph@pwjmedia.com)
+[debug] [2024-11-13T21:34:23.264Z] [iam] checking project shopify-webscraper for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-11-13T21:34:23.268Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions [none]
+[debug] [2024-11-13T21:34:23.269Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions x-goog-quota-user=projects/shopify-webscraper
+[debug] [2024-11-13T21:34:23.269Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-11-13T21:34:23.742Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions 200
+[debug] [2024-11-13T21:34:23.746Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-11-13T21:34:23.749Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper [none]
+[debug] [2024-11-13T21:34:24.275Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper 200
+[debug] [2024-11-13T21:34:24.277Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper {"projectId":"shopify-webscraper","projectNumber":"183674215962","displayName":"Shopify-webscraper","name":"projects/shopify-webscraper","resources":{"hostingSite":"shopify-webscraper","realtimeDatabaseInstance":"shopify-webscraper-default-rtdb","storageBucket":"shopify-webscraper.appspot.com","locationId":"us-central"},"state":"ACTIVE","etag":"1_177d23a1-badc-4022-a565-c21808e5b068"}
+[debug] [2024-11-13T21:34:30.104Z] ReferenceError: Request is not defined
+    at Object.<anonymous> (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/web/spec-extension/request.js:28:27)
+    at Module._compile (node:internal/modules/cjs/loader:1105:14)
+    at Module._compile (pkg/prelude/bootstrap.js:1894:32)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1159:10)
+    at Module.load (node:internal/modules/cjs/loader:981:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:822:12)
+    at Module.require (node:internal/modules/cjs/loader:1005:19)
+    at Module.require (pkg/prelude/bootstrap.js:1855:31)
+    at Module.mod.require (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/cjs/helpers:102:18)
+    at Object.<anonymous> (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/web/spec-extension/adapters/next-request.js:37:18)
+    at Module._compile (node:internal/modules/cjs/loader:1105:14)
+    at Module._compile (pkg/prelude/bootstrap.js:1894:32)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1159:10)
+    at Module.load (node:internal/modules/cjs/loader:981:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:822:12)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-11-13T21:39:12.307Z] ----------------------------------------------------------------------
+[debug] [2024-11-13T21:39:12.309Z] Command:       /usr/local/bin/firebase /Users/parkerjoseph/.cache/firebase/tools/lib/node_modules/firebase-tools/lib/bin/firebase deploy
+[debug] [2024-11-13T21:39:12.310Z] CLI Version:   11.19.0
+[debug] [2024-11-13T21:39:12.310Z] Platform:      darwin
+[debug] [2024-11-13T21:39:12.310Z] Node Version:  v16.16.0
+[debug] [2024-11-13T21:39:12.317Z] Time:          Wed Nov 13 2024 16:39:12 GMT-0500 (Eastern Standard Time)
+[debug] [2024-11-13T21:39:12.318Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-11-13T21:39:12.436Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-11-13T21:39:12.439Z] > authorizing via signed-in user (parkerjoseph@pwjmedia.com)
+[debug] [2024-11-13T21:39:12.440Z] [iam] checking project shopify-webscraper for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-11-13T21:39:12.443Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions [none]
+[debug] [2024-11-13T21:39:12.445Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions x-goog-quota-user=projects/shopify-webscraper
+[debug] [2024-11-13T21:39:12.445Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-11-13T21:39:13.461Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions 200
+[debug] [2024-11-13T21:39:13.464Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-11-13T21:39:13.466Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper [none]
+[debug] [2024-11-13T21:39:14.228Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper 200
+[debug] [2024-11-13T21:39:14.230Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper {"projectId":"shopify-webscraper","projectNumber":"183674215962","displayName":"Shopify-webscraper","name":"projects/shopify-webscraper","resources":{"hostingSite":"shopify-webscraper","realtimeDatabaseInstance":"shopify-webscraper-default-rtdb","storageBucket":"shopify-webscraper.appspot.com","locationId":"us-central"},"state":"ACTIVE","etag":"1_177d23a1-badc-4022-a565-c21808e5b068"}
+[debug] [2024-11-13T21:39:21.204Z] ReferenceError: Request is not defined
+    at Object.<anonymous> (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/web/spec-extension/request.js:28:27)
+    at Module._compile (node:internal/modules/cjs/loader:1105:14)
+    at Module._compile (pkg/prelude/bootstrap.js:1894:32)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1159:10)
+    at Module.load (node:internal/modules/cjs/loader:981:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:822:12)
+    at Module.require (node:internal/modules/cjs/loader:1005:19)
+    at Module.require (pkg/prelude/bootstrap.js:1855:31)
+    at Module.mod.require (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/cjs/helpers:102:18)
+    at Object.<anonymous> (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/web/spec-extension/adapters/next-request.js:37:18)
+    at Module._compile (node:internal/modules/cjs/loader:1105:14)
+    at Module._compile (pkg/prelude/bootstrap.js:1894:32)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1159:10)
+    at Module.load (node:internal/modules/cjs/loader:981:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:822:12)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-11-13T21:51:53.809Z] ----------------------------------------------------------------------
+[debug] [2024-11-13T21:51:53.811Z] Command:       /usr/local/bin/firebase /Users/parkerjoseph/.cache/firebase/tools/lib/node_modules/firebase-tools/lib/bin/firebase deploy
+[debug] [2024-11-13T21:51:53.812Z] CLI Version:   11.19.0
+[debug] [2024-11-13T21:51:53.812Z] Platform:      darwin
+[debug] [2024-11-13T21:51:53.812Z] Node Version:  v16.16.0
+[debug] [2024-11-13T21:51:53.817Z] Time:          Wed Nov 13 2024 16:51:53 GMT-0500 (Eastern Standard Time)
+[debug] [2024-11-13T21:51:53.818Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-11-13T21:51:54.221Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-11-13T21:51:54.278Z] > authorizing via signed-in user (parkerjoseph@pwjmedia.com)
+[debug] [2024-11-13T21:51:54.284Z] [iam] checking project shopify-webscraper for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-11-13T21:51:54.310Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions [none]
+[debug] [2024-11-13T21:51:54.315Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions x-goog-quota-user=projects/shopify-webscraper
+[debug] [2024-11-13T21:51:54.322Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-11-13T21:51:54.989Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions 200
+[debug] [2024-11-13T21:51:54.992Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-11-13T21:51:54.995Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper [none]
+[debug] [2024-11-13T21:51:55.562Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper 200
+[debug] [2024-11-13T21:51:55.564Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper {"projectId":"shopify-webscraper","projectNumber":"183674215962","displayName":"Shopify-webscraper","name":"projects/shopify-webscraper","resources":{"hostingSite":"shopify-webscraper","realtimeDatabaseInstance":"shopify-webscraper-default-rtdb","storageBucket":"shopify-webscraper.appspot.com","locationId":"us-central"},"state":"ACTIVE","etag":"1_177d23a1-badc-4022-a565-c21808e5b068"}
+[debug] [2024-11-13T21:52:02.448Z] ReferenceError: Request is not defined
+    at Object.<anonymous> (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/web/spec-extension/request.js:28:27)
+    at Module._compile (node:internal/modules/cjs/loader:1105:14)
+    at Module._compile (pkg/prelude/bootstrap.js:1894:32)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1159:10)
+    at Module.load (node:internal/modules/cjs/loader:981:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:822:12)
+    at Module.require (node:internal/modules/cjs/loader:1005:19)
+    at Module.require (pkg/prelude/bootstrap.js:1855:31)
+    at Module.mod.require (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/cjs/helpers:102:18)
+    at Object.<anonymous> (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/web/spec-extension/adapters/next-request.js:37:18)
+    at Module._compile (node:internal/modules/cjs/loader:1105:14)
+    at Module._compile (pkg/prelude/bootstrap.js:1894:32)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1159:10)
+    at Module.load (node:internal/modules/cjs/loader:981:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:822:12)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-11-13T21:53:30.956Z] ----------------------------------------------------------------------
+[debug] [2024-11-13T21:53:30.958Z] Command:       /usr/local/bin/firebase /Users/parkerjoseph/.cache/firebase/tools/lib/node_modules/firebase-tools/lib/bin/firebase deploy
+[debug] [2024-11-13T21:53:30.959Z] CLI Version:   11.19.0
+[debug] [2024-11-13T21:53:30.959Z] Platform:      darwin
+[debug] [2024-11-13T21:53:30.959Z] Node Version:  v16.16.0
+[debug] [2024-11-13T21:53:30.966Z] Time:          Wed Nov 13 2024 16:53:30 GMT-0500 (Eastern Standard Time)
+[debug] [2024-11-13T21:53:30.967Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-11-13T21:53:31.085Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-11-13T21:53:31.088Z] > authorizing via signed-in user (parkerjoseph@pwjmedia.com)
+[debug] [2024-11-13T21:53:31.089Z] [iam] checking project shopify-webscraper for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-11-13T21:53:31.093Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions [none]
+[debug] [2024-11-13T21:53:31.094Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions x-goog-quota-user=projects/shopify-webscraper
+[debug] [2024-11-13T21:53:31.095Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-11-13T21:53:31.629Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions 200
+[debug] [2024-11-13T21:53:31.632Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-11-13T21:53:31.635Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper [none]
+[debug] [2024-11-13T21:53:31.997Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper 200
+[debug] [2024-11-13T21:53:32.000Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper {"projectId":"shopify-webscraper","projectNumber":"183674215962","displayName":"Shopify-webscraper","name":"projects/shopify-webscraper","resources":{"hostingSite":"shopify-webscraper","realtimeDatabaseInstance":"shopify-webscraper-default-rtdb","storageBucket":"shopify-webscraper.appspot.com","locationId":"us-central"},"state":"ACTIVE","etag":"1_177d23a1-badc-4022-a565-c21808e5b068"}
+[debug] [2024-11-13T21:53:38.333Z] ReferenceError: Request is not defined
+    at Object.<anonymous> (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/web/spec-extension/request.js:28:27)
+    at Module._compile (node:internal/modules/cjs/loader:1105:14)
+    at Module._compile (pkg/prelude/bootstrap.js:1894:32)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1159:10)
+    at Module.load (node:internal/modules/cjs/loader:981:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:822:12)
+    at Module.require (node:internal/modules/cjs/loader:1005:19)
+    at Module.require (pkg/prelude/bootstrap.js:1855:31)
+    at Module.mod.require (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/cjs/helpers:102:18)
+    at Object.<anonymous> (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/web/spec-extension/adapters/next-request.js:37:18)
+    at Module._compile (node:internal/modules/cjs/loader:1105:14)
+    at Module._compile (pkg/prelude/bootstrap.js:1894:32)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1159:10)
+    at Module.load (node:internal/modules/cjs/loader:981:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:822:12)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-11-13T21:54:03.013Z] ----------------------------------------------------------------------
+[debug] [2024-11-13T21:54:03.015Z] Command:       /usr/local/bin/firebase /Users/parkerjoseph/.cache/firebase/tools/lib/node_modules/firebase-tools/lib/bin/firebase deploy
+[debug] [2024-11-13T21:54:03.016Z] CLI Version:   11.19.0
+[debug] [2024-11-13T21:54:03.016Z] Platform:      darwin
+[debug] [2024-11-13T21:54:03.016Z] Node Version:  v16.16.0
+[debug] [2024-11-13T21:54:03.025Z] Time:          Wed Nov 13 2024 16:54:03 GMT-0500 (Eastern Standard Time)
+[debug] [2024-11-13T21:54:03.026Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-11-13T21:54:03.141Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-11-13T21:54:03.146Z] > authorizing via signed-in user (parkerjoseph@pwjmedia.com)
+[debug] [2024-11-13T21:54:03.148Z] [iam] checking project shopify-webscraper for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-11-13T21:54:03.153Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions [none]
+[debug] [2024-11-13T21:54:03.154Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions x-goog-quota-user=projects/shopify-webscraper
+[debug] [2024-11-13T21:54:03.155Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-11-13T21:54:03.666Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions 200
+[debug] [2024-11-13T21:54:03.669Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-11-13T21:54:03.671Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper [none]
+[debug] [2024-11-13T21:54:04.155Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper 200
+[debug] [2024-11-13T21:54:04.157Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper {"projectId":"shopify-webscraper","projectNumber":"183674215962","displayName":"Shopify-webscraper","name":"projects/shopify-webscraper","resources":{"hostingSite":"shopify-webscraper","realtimeDatabaseInstance":"shopify-webscraper-default-rtdb","storageBucket":"shopify-webscraper.appspot.com","locationId":"us-central"},"state":"ACTIVE","etag":"1_177d23a1-badc-4022-a565-c21808e5b068"}
+[debug] [2024-11-13T21:54:10.554Z] ReferenceError: Request is not defined
+    at Object.<anonymous> (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/web/spec-extension/request.js:28:27)
+    at Module._compile (node:internal/modules/cjs/loader:1105:14)
+    at Module._compile (pkg/prelude/bootstrap.js:1894:32)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1159:10)
+    at Module.load (node:internal/modules/cjs/loader:981:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:822:12)
+    at Module.require (node:internal/modules/cjs/loader:1005:19)
+    at Module.require (pkg/prelude/bootstrap.js:1855:31)
+    at Module.mod.require (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/cjs/helpers:102:18)
+    at Object.<anonymous> (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/web/spec-extension/adapters/next-request.js:37:18)
+    at Module._compile (node:internal/modules/cjs/loader:1105:14)
+    at Module._compile (pkg/prelude/bootstrap.js:1894:32)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1159:10)
+    at Module.load (node:internal/modules/cjs/loader:981:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:822:12)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2024-11-13T21:54:43.575Z] ----------------------------------------------------------------------
+[debug] [2024-11-13T21:54:43.577Z] Command:       /usr/local/bin/firebase /Users/parkerjoseph/.cache/firebase/tools/lib/node_modules/firebase-tools/lib/bin/firebase deploy
+[debug] [2024-11-13T21:54:43.578Z] CLI Version:   11.19.0
+[debug] [2024-11-13T21:54:43.578Z] Platform:      darwin
+[debug] [2024-11-13T21:54:43.578Z] Node Version:  v16.16.0
+[debug] [2024-11-13T21:54:43.584Z] Time:          Wed Nov 13 2024 16:54:43 GMT-0500 (Eastern Standard Time)
+[debug] [2024-11-13T21:54:43.585Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2024-11-13T21:54:43.703Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2024-11-13T21:54:43.706Z] > authorizing via signed-in user (parkerjoseph@pwjmedia.com)
+[debug] [2024-11-13T21:54:43.707Z] [iam] checking project shopify-webscraper for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2024-11-13T21:54:43.710Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions [none]
+[debug] [2024-11-13T21:54:43.711Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions x-goog-quota-user=projects/shopify-webscraper
+[debug] [2024-11-13T21:54:43.712Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-11-13T21:54:44.124Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions 200
+[debug] [2024-11-13T21:54:44.126Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/shopify-webscraper:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2024-11-13T21:54:44.127Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper [none]
+[debug] [2024-11-13T21:54:44.539Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper 200
+[debug] [2024-11-13T21:54:44.542Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/shopify-webscraper {"projectId":"shopify-webscraper","projectNumber":"183674215962","displayName":"Shopify-webscraper","name":"projects/shopify-webscraper","resources":{"hostingSite":"shopify-webscraper","realtimeDatabaseInstance":"shopify-webscraper-default-rtdb","storageBucket":"shopify-webscraper.appspot.com","locationId":"us-central"},"state":"ACTIVE","etag":"1_177d23a1-badc-4022-a565-c21808e5b068"}
+[debug] [2024-11-13T21:54:51.170Z] ReferenceError: Request is not defined
+    at Object.<anonymous> (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/web/spec-extension/request.js:28:27)
+    at Module._compile (node:internal/modules/cjs/loader:1105:14)
+    at Module._compile (pkg/prelude/bootstrap.js:1894:32)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1159:10)
+    at Module.load (node:internal/modules/cjs/loader:981:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:822:12)
+    at Module.require (node:internal/modules/cjs/loader:1005:19)
+    at Module.require (pkg/prelude/bootstrap.js:1855:31)
+    at Module.mod.require (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/require-hook.js:65:28)
+    at require (node:internal/modules/cjs/helpers:102:18)
+    at Object.<anonymous> (/Users/parkerjoseph/trade-analyzer/node_modules/next/dist/server/web/spec-extension/adapters/next-request.js:37:18)
+    at Module._compile (node:internal/modules/cjs/loader:1105:14)
+    at Module._compile (pkg/prelude/bootstrap.js:1894:32)
+    at Object.Module._extensions..js (node:internal/modules/cjs/loader:1159:10)
+    at Module.load (node:internal/modules/cjs/loader:981:32)
+    at Function.Module._load (node:internal/modules/cjs/loader:822:12)
+[error] 
+[error] Error: An unexpected error has occurred.
