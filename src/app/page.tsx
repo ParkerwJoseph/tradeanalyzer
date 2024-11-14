@@ -1,5 +1,5 @@
 "use client"
-
+import PageTemplate from "@/components/layout/PageTemplate"
 import React, { useState, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { 
@@ -175,7 +175,7 @@ const TradeList = ({ trades }: { trades: Trade[] }) => {
 
 
 
-const TradeAnalyzer = ({ children }: { children?: React.ReactNode }) => {
+function TradeAnalyzer() {
 
   const router = useRouter()
   const pathname = usePathname()
@@ -314,158 +314,116 @@ const TradeAnalyzer = ({ children }: { children?: React.ReactNode }) => {
   }, [filteredTrades])
 
   return (
-    <div className="flex h-screen">
-      <aside className="w-64 bg-black text-white h-screen fixed">
-        <div className="p-6 h-full flex flex-col">
-          <div className="flex items-center gap-2 mb-8">
-            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-              <BarChart className="w-5 h-5" />
-            </div>
-            <span className="text-xl font-semibold">Traders Edge</span>
-          </div>
+ <PageTemplate title="" description="">
+    <div className="space-y-6">
+      <div className="flex items-center justify-end gap-4">
+        <Button variant="outline" onClick={() => document.getElementById('file-upload')?.click()}>
+          <Upload className="w-4 h-4 mr-2" />
+          Import CSV
+        </Button>
+        <Input
+          id="file-upload"
+          type="file"
+          accept=".csv"
+          onChange={handleFileUpload}
+          className="hidden"
+        />
+        <Avatar className="h-10 w-10">
+          <AvatarImage src="/placeholder.svg" />
+          <AvatarFallback>EM</AvatarFallback>
+        </Avatar>
+      </div>
 
-          <nav className="space-y-2 flex-grow">
-            {navigationItems.map((item) => (
-              <NavItem 
-                key={item.path}
-                icon={item.icon}
-                label={item.label}
-                path={item.path}
-                active={pathname === item.path}
-              />
-            ))}
-          </nav>
+      <div className="mb-6">
+        <Input
+          type="month"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
+          className="max-w-xs"
+        />
+      </div>
 
-          <div className="pt-8">
-            <NavItem 
-              icon={<LogOut />} 
-              label="Log out" 
-              path="/logout"
+      {isLoading ? (
+        <LoadingState />
+      ) : stats ? (
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <StatsCard
+              title="Total Trades"
+              value={stats.total}
+              change={`${((stats.winningTrades / stats.total) * 100).toFixed(1)}% win rate`}
+              icon={<Calendar className="text-blue-500" />}
+            />
+            <StatsCard
+              title="Win Rate"
+              value={`${stats.winRate}%`}
+              change={`${stats.winningTrades} winning trades`}
+              icon={<Percent className="text-green-500" />}
+            />
+            <StatsCard
+              title={stats.profitLossLabel}
+              value={`$${stats.profitLoss}`}
+              change={stats.isProfitable ? 'Profitable' : 'Loss'}
+              trend={stats.isProfitable}
+              icon={<DollarSign className="text-yellow-500" />}
             />
           </div>
+
+          {/* Performance Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Performance Overview</CardTitle>
+              <CardDescription>Daily profit/loss trend</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[400px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis dataKey="date" stroke="#6B7280" />
+                  <YAxis stroke="#6B7280" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#FFF',
+                      border: '1px solid #E5E7EB',
+                      borderRadius: '6px' 
+                    }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="gainLoss" 
+                    stroke="#2563EB" 
+                    strokeWidth={2} 
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Trade History */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Trade History</CardTitle>
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="w-full justify-start">
+                  <TabsTrigger value="all">All Trades</TabsTrigger>
+                  <TabsTrigger value="winning">Winning</TabsTrigger>
+                  <TabsTrigger value="losing">Losing</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </CardHeader>
+            <CardContent>
+              <TradeList trades={filteredTrades} />
+            </CardContent>
+          </Card>
         </div>
-      </aside>
-
-      <main className="flex-1 bg-gray-50 ml-64 overflow-auto h-screen">
-        {children || (
-          <div className="p-8">
-            <div className="flex justify-between items-center mb-8">
-              <div>
-                <h1 className="text-2xl font-semibold text-gray-900">Trading Overview</h1>
-                <p className="text-gray-500">Monitor your trading performance</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <Button variant="outline" onClick={() => document.getElementById('file-upload')?.click()}>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Import CSV
-                </Button>
-                <Input
-                  id="file-upload"
-                  type="file"
-                  accept=".csv"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src="/placeholder.svg" />
-                  <AvatarFallback>EM</AvatarFallback>
-                </Avatar>
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <Input
-                type="month"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="max-w-xs"
-              />
-            </div>
-
-            {isLoading ? (
-              <LoadingState />
-            ) : stats ? (
-              <div className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <StatsCard
-                    title="Total Trades"
-                    value={stats.total}
-                    change={`${((stats.winningTrades / stats.total) * 100).toFixed(1)}% win rate`}
-                    icon={<Calendar className="text-blue-500" />}
-                  />
-                  <StatsCard
-                    title="Win Rate"
-                    value={`${stats.winRate}%`}
-                    change={`${stats.winningTrades} winning trades`}
-                    icon={<Percent className="text-green-500" />}
-                  />
-                  <StatsCard
-                    title={stats.profitLossLabel}
-                    value={`$${stats.profitLoss}`}
-                    change={stats.isProfitable ? 'Profitable' : 'Loss'}
-                    trend={stats.isProfitable}
-                    icon={<DollarSign className="text-yellow-500" />}
-                  />
-                </div>
-
-                
-
-                {/* Performance Chart */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Performance Overview</CardTitle>
-                    <CardDescription>Daily profit/loss trend</CardDescription>
-                  </CardHeader>
-                  <CardContent className="h-[400px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                        <XAxis dataKey="date" stroke="#6B7280" />
-                        <YAxis stroke="#6B7280" />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: '#FFF',
-                            border: '1px solid #E5E7EB',
-                            borderRadius: '6px' 
-                          }}
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="gainLoss" 
-                          stroke="#2563EB" 
-                          strokeWidth={2} 
-                          dot={false}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-
-                {/* Trade History */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Trade History</CardTitle>
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                      <TabsList className="w-full justify-start">
-                        <TabsTrigger value="all">All Trades</TabsTrigger>
-                        <TabsTrigger value="winning">Winning</TabsTrigger>
-                        <TabsTrigger value="losing">Losing</TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </CardHeader>
-                  <CardContent>
-                    <TradeList trades={filteredTrades} />
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-              <EmptyState />
-            )}
-          </div>
-        )}
-      </main>
+      ) : (
+        <EmptyState />
+      )}
     </div>
+    </PageTemplate>
   )
 }
+
 
 export default TradeAnalyzer
