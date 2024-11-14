@@ -32,9 +32,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { motion } from "framer-motion"
 
-interface TradeAnalyzerProps {
-  children?: React.ReactNode
-}
 
 
 interface Trade {
@@ -178,7 +175,8 @@ const TradeList = ({ trades }: { trades: Trade[] }) => {
 
 
 
-const TradeAnalyzer = ({ children }: TradeAnalyzerProps) => {
+const TradeAnalyzer = ({ children }: { children?: React.ReactNode }) => {
+
   const router = useRouter()
   const pathname = usePathname()
   
