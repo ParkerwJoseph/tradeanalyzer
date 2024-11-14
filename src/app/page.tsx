@@ -3,9 +3,10 @@ import PageTemplate from "@/components/layout/PageTemplate"
 
 const SettingsPage = () => {
   return (
-    <PageTemplate title="Settings" description="">
-      {/* Your live view content */}
-    </PageTemplate>
+   <div>
+
+    <h1>Hello fucker</h1>
+   </div>
   )
 }
 
