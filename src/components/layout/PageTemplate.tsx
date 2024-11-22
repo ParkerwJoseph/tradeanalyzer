@@ -18,7 +18,8 @@ const navigationItems = [
   { label: 'Overview', path: '/' },
   { label: 'Watchlist', path: '/components/watchlist' },
   { label: 'News', path: '/components/news' },
-  { label: 'Planner', path: '/components/planner' }
+  { label: 'Planner', path: '/components/planner' },
+  { label: 'Stock Analyzer', path: '/components/stock-gpt' }
 ];
 
 const NavItem = ({ label, path, active }: { label: string; path: string; active: boolean }) => {
