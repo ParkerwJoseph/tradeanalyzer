@@ -7,6 +7,7 @@ import {
   Settings,
   User
 } from 'lucide-react';
+import Link from 'next/link';
 
 interface PageTemplateProps {
   children?: React.ReactNode;
@@ -45,51 +46,34 @@ const PageTemplate = ({ children, title, description }: PageTemplateProps) => {
   const pathname = usePathname();
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Top Navigation Bar */}
-      <header className="border-b border-gray-200 bg-white">
-        <div className="max-w-7xl mx-auto px-4 h-20">
-          <div className="flex items-center justify-between h-full">
-            {/* Left side - Logo */}
-            <div className="flex items-center gap-8">
-              <h1 className="text-xl font-bold">Trading App</h1>
-            </div>
-
-            {/* Center - Navigation */}
-            <nav className="flex items-center absolute left-1/2 transform -translate-x-1/2">
-              {navigationItems.map((item) => (
-                <NavItem 
-                  key={item.path}
-                  label={item.label}
-                  path={item.path}
-                  active={pathname === item.path}
-                />
-              ))}
-            </nav>
-
-            {/* Right side - Icons */}
-            <div className="flex items-center gap-6">
-              <button className="p-2 text-gray-500 hover:text-black transition-colors">
-                <BellIcon size={20} />
-              </button>
-              <button className="p-2 text-gray-500 hover:text-black transition-colors">
-                <Settings size={20} />
-              </button>
-             
-            </div>
+    <div className="flex flex-col min-h-screen bg-white">
+      <nav className="border-b bg-white">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex space-x-8">
+            {navigationItems.map((item) => (
+              <Link
+                key={item.path}
+                href={item.path}
+                className={`py-4 px-3 text-sm font-medium ${
+                  pathname === item.path
+                    ? 'border-b-2 border-primary text-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
           </div>
+        </div>
+      </nav>
+      <header className="border-b bg-white">
+        <div className="max-w-3xl mx-auto p-4">
+          <h1 className="text-2xl font-bold">{title}</h1>
+          <p className="text-muted-foreground">{description}</p>
         </div>
       </header>
-
-      {/* Main Content */}
-      <main className="flex-1 bg-gray-50 overflow-auto">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900">{title}</h2>
-            {description && <p className="text-gray-500">{description}</p>}
-          </div>
-          {children}
-        </div>
+      <main className="flex-1 relative bg-white">
+        {children}
       </main>
     </div>
   );

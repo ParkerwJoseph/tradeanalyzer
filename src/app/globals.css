@@ -35,6 +35,8 @@ body {
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
+    --nav-height: 57px;     /* 49px + 8px for border */
+    --header-height: 89px;  /* Adjust based on your header's actual height */
   }
   .dark {
     --background: 222.2 84% 4.9%;
