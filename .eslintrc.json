@@ -5,6 +5,12 @@
     "react-hooks/exhaustive-deps": "off",
     "import/no-anonymous-default-export": "off",
     "@typescript-eslint/no-empty-object-type": "off",
-    "@typescript-eslint/no-explicit-any": "warn"
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/ban-ts-comment": ["error", {
+      "ts-expect-error": "allow-with-description",
+      "ts-ignore": false,
+      "ts-nocheck": false,
+      "ts-check": false
+    }]
   }
 }
