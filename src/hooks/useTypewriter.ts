@@ -5,14 +5,15 @@ export function useTypewriter(text: string, speed: number = 20) {
     const [isTyping, setIsTyping] = useState(true);
 
     useEffect(() => {
+        // Reset when text changes
         setDisplayedText('');
         setIsTyping(true);
-        let index = 0;
+        let currentIndex = 0;
 
         const timer = setInterval(() => {
-            if (index < text.length) {
-                setDisplayedText((current) => current + text.charAt(index));
-                index++;
+            if (currentIndex < text.length) {
+                setDisplayedText(text.substring(0, currentIndex + 1));
+                currentIndex++;
             } else {
                 setIsTyping(false);
                 clearInterval(timer);
