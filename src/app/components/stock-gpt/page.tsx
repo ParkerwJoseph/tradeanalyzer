@@ -400,6 +400,17 @@ interface ApiResponse {
     error?: ErrorResponse;
 }
 
+// First, define an interface for the error response
+interface ApiErrorResponse {
+    response?: {
+        data?: {
+            message?: string;
+        };
+        status?: number;
+    };
+    message: string;
+}
+
 // Main Component
 export default function StockAnalyzerPage() {
     const [messages, setMessages] = useState<ConversationMessage[]>([])
@@ -439,13 +450,13 @@ export default function StockAnalyzerPage() {
     }
 
     // Update the handleError function with Axios error type
-    const handleError = (error: AxiosError | Error) => {
-        if (axios.isAxiosError(error)) {
-            const serverError = error.response?.data as ErrorResponse;
-            setError(serverError?.message || 'An error occurred while fetching data');
+    const handleError = (error: ApiErrorResponse) => {
+        if ('response' in error && error.response?.data) {
+            setError(error.response.data.message || 'An error occurred while fetching data');
         } else {
-            setError(error.message);
+            setError(error.message || 'An unexpected error occurred');
         }
+        setIsLoading(false);
     };
 
     const analyzeStock = async (ticker: string) => {
@@ -480,7 +491,7 @@ export default function StockAnalyzerPage() {
                 throw new Error(response.data.error || 'Unknown error occurred')
             }
         } catch (error: unknown) {
-            handleError(error as AxiosError | Error)
+            handleError(error as ApiErrorResponse)
         } finally {
             setIsLoading(false)
         }
