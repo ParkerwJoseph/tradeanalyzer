@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 import { Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -63,6 +63,18 @@ interface StockAnalysisResponse {
     analysis?: string;
     message?: string;
     error?: string;
+}
+
+// Add this type for API errors
+interface ApiError {
+    code?: string;
+    response?: {
+        status?: number;
+        data?: {
+            message?: string;
+        };
+    };
+    message?: string;
 }
 
 function formatNumber(num: number | undefined | null): string {
@@ -203,23 +215,24 @@ export default function StockAnalyzerPage() {
         return null
     }
 
-    const handleError = (error: any) => {
-        let errorMessage = 'I apologize, but '
+    // Update the handleError function with Axios error type
+    const handleError = (error: AxiosError | Error) => {
+        let errorMessage = 'I apologize, but ';
 
         if (axios.isAxiosError(error)) {
             if (error.code === 'ECONNABORTED') {
-                errorMessage += 'the request timed out. Please try again.'
+                errorMessage += 'the request timed out. Please try again.';
             } else if (error.response?.status === 429) {
-                errorMessage += "I've reached my API rate limit. Please wait a moment and try again."
+                errorMessage += "I've reached my API rate limit. Please wait a moment and try again.";
             } else {
-                errorMessage += 'there was an issue connecting to the server. Please try again later.'
+                errorMessage += 'there was an issue connecting to the server. Please try again later.';
             }
         } else {
-            errorMessage += 'an unexpected error occurred. Please try again.'
+            errorMessage += 'an unexpected error occurred. Please try again.';
         }
 
-        addMessage('error', errorMessage)
-    }
+        addMessage('error', errorMessage);
+    };
 
     const analyzeStock = async (query: string) => {
         try {
@@ -254,8 +267,8 @@ export default function StockAnalyzerPage() {
             } else {
                 throw new Error(response.data.error || 'Unknown error occurred')
             }
-        } catch (error) {
-            handleError(error)
+        } catch (error: unknown) {
+            handleError(error as AxiosError | Error)
         } finally {
             setIsLoading(false)
         }
