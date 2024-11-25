@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import axios, { AxiosError } from 'axios'
-import { Send, X } from 'lucide-react'
+import { Send, X, Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import PageTemplate from '@/components/layout/PageTemplate'
@@ -11,6 +11,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { format } from 'date-fns';
 import { Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic'
+import { useDarkMode } from '@/hooks/useDarkMode'
 
 // Types
 interface StockData {
@@ -112,7 +113,7 @@ function generateChartId(symbol: string, timestamp: number): string {
     return `tradingview_${symbol}_${timestamp}`;
 }
 
-// Add this component for the enhanced TradingView chart
+// Keep only the EnhancedTradingViewChart component for use in messages
 const EnhancedTradingViewChart = ({ symbol, containerId }: { symbol: string; containerId: string }) => {
     const [isLoading, setIsLoading] = useState(true);
 
@@ -123,7 +124,7 @@ const EnhancedTradingViewChart = ({ symbol, containerId }: { symbol: string; con
         document.head.appendChild(script);
 
         script.onload = () => {
-            // @ts-expect-error TradingView types not available
+            // @ts-expect-error TradingView widget is loaded externally
             new TradingView.widget({
                 width: '100%',
                 height: 600,
@@ -146,10 +147,6 @@ const EnhancedTradingViewChart = ({ symbol, containerId }: { symbol: string; con
                 show_popup_button: true,
                 popup_width: '1000',
                 popup_height: '650',
-                // Additional features
-                withdateranges: true,
-                hide_volume: false,
-                volume_precision: 2,
                 onready: () => {
                     setIsLoading(false);
                 }
@@ -164,15 +161,12 @@ const EnhancedTradingViewChart = ({ symbol, containerId }: { symbol: string; con
 
     return (
         <div className="relative">
+            <div id={containerId} className="w-full" />
             {isLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                    <div className="flex flex-col items-center gap-2">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        <span className="text-sm text-gray-600">Loading chart data...</span>
-                    </div>
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
             )}
-            <div id={containerId} className="w-full" />
         </div>
     );
 };
@@ -411,15 +405,191 @@ interface ApiErrorResponse {
     message: string;
 }
 
+// Add this interface for news data
+interface NewsArticle {
+    id: string;
+    title: string;
+    url: string;
+    publishDate: string;
+    provider: string;
+    thumbnail: string | null;
+    tickers: string[];
+    isPremium: boolean;
+}
+
+interface NewsData {
+    articles: NewsArticle[];
+    metadata: {
+        totalArticles: number;
+        providers: string[];
+        dateRange: {
+            newest: string;
+            oldest: string;
+        };
+    };
+}
+
+// Add this component for news display
+const NewsPanel = ({ ticker }: { ticker: string }) => {
+    const [news, setNews] = useState<NewsArticle[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        const fetchNews = async () => {
+            if (!ticker) return;
+            setIsLoading(true);
+            try {
+                const response = await axios.get(
+                    `https://us-central1-shopify-webscraper.cloudfunctions.net/app/stockNews?ticker=${ticker}`
+                );
+                setNews(response.data.data.articles);
+            } catch (error) {
+                console.error('Error fetching news:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchNews();
+    }, [ticker]);
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            <h3 className="font-semibold text-lg dark:text-white">Latest News</h3>
+            <div className="space-y-4">
+                {news.map((article) => (
+                    <a
+                        key={article.id}
+                        href={article.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block p-4 rounded-lg border bg-white dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                        <div className="flex gap-4">
+                            {article.thumbnail && (
+                                <div className="flex-shrink-0">
+                                    <img
+                                        src={article.thumbnail}
+                                        alt=""
+                                        className="w-20 h-20 object-cover rounded"
+                                    />
+                                </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                                <h4 className="font-medium text-sm line-clamp-2 dark:text-white">
+                                    {article.title}
+                                </h4>
+                                <p className="text-sm text-muted-foreground dark:text-gray-400 mt-1">
+                                    {article.provider} • {format(new Date(article.publishDate), 'MMM d, yyyy')}
+                                </p>
+                            </div>
+                        </div>
+                    </a>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+// Add new interfaces for the AI response
+interface AIQueryResponse {
+    success: boolean;
+    response?: string;
+    error?: string;
+}
+
+interface ParsedAIResponse {
+    function: string;
+    ticker: string;
+}
+
+// Add function to parse AI response
+const parseAIResponse = (response: string): ParsedAIResponse => {
+    const parts = response.trim().split(' ');
+    if (parts.length === 2) {
+        return {
+            function: parts[0].toLowerCase(),
+            ticker: parts[1].toUpperCase()
+        };
+    }
+    return {
+        function: 'unknown',
+        ticker: 'UNKNOWN'
+    };
+};
+
+// Add basic type for response
+interface GPTResponse {
+    success: boolean;
+    response?: string;
+    error?: string;
+}
+
+// Separate function to handle the AI query
+const SYSTEM_PROMPT = `You are an AI assistant that analyzes user input about stock-related queries. Your task is to:
+
+Identify the function the user is asking for (e.g., "options," "analyze," "price," "volume," etc.).
+Extract the ticker symbol associated with the query. If the query uses a company name, map it to its stock ticker symbol (e.g., "Apple" → "AAPL").
+Output Format:
+Return only the result as: function TICKER.
+
+Examples:
+
+Input: "What are the options volume on Apple?"
+Output: options AAPL
+Input: "Analyze Tesla's stock performance."
+Output: analyze TSLA
+Input: "Can you check the price of Microsoft?"
+Output: price MSFT
+Input: "How is Google doing?"
+Output: unknown UNKNOWN
+If no ticker is found, or the input is unclear, always return: unknown UNKNOWN.
+
+User Query: `;
+
+const queryAI = async (input: string): Promise<string> => {
+    try {
+        const fullPrompt = SYSTEM_PROMPT + input;
+        
+        const response = await fetch(
+            'https://us-central1-personalgpt-55bef.cloudfunctions.net/app/basicQuestion?q=' + 
+            encodeURIComponent(`"${fullPrompt}"`),
+            {
+                method: 'POST',
+                redirect: 'follow'
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+
+        const data = await response.json();
+        return data.message;
+    } catch (error) {
+        console.error('AI Query Error:', error);
+        throw error;
+    }
+};
+
 // Main Component
 export default function StockAnalyzerPage() {
-    const [messages, setMessages] = useState<ConversationMessage[]>([])
-    const [input, setInput] = useState<string>('')
-    const [isLoading, setIsLoading] = useState<boolean>(false)
-    const [currentTicker, setCurrentTicker] = useState<string>('')
-    const [tickerSymbols, setTickerSymbols] = useState<string[]>([])
-    const [showCandlestick, setShowCandlestick] = useState(false)
-    const [error, setError] = useState<string>('')
+    const [messages, setMessages] = useState<ConversationMessage[]>([]);
+    const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [currentTicker, setCurrentTicker] = useState<string>('');
+    const [showCandlestick, setShowCandlestick] = useState(false);
+    const [tickerSymbols, setTickerSymbols] = useState<string[]>([]);
+    const [error, setError] = useState<string>('');
+    const { isDark, toggleDarkMode } = useDarkMode();
 
     const tickerPatterns = {
         dollarSymbol: /\$([A-Za-z]{1,5})\b/,
@@ -427,27 +597,26 @@ export default function StockAnalyzerPage() {
         standalone: /\b([A-Za-z]{1,5})\b/,
     }
 
-    const addMessage = (type: ConversationMessage['type'], content: string, data?: Partial<StockData>) => {
-        setMessages((prev) => [
-            ...prev,
-            {
-                type,
-                content,
-                timestamp: new Date(),
-                data
-            },
-        ])
-    }
+    const addMessage = (
+        type: ConversationMessage['type'],
+        content: string,
+        data?: Partial<StockData> & { ticker?: string }
+    ) => {
+        const newMessage: ConversationMessage = {
+            type,
+            content,
+            timestamp: new Date(),
+            data,
+            ticker: data?.ticker
+        };
+        setMessages(prev => [...prev, newMessage]);
+    };
 
-    const extractTicker = (query: string): string | null => {
-        for (const [_, pattern] of Object.entries(tickerPatterns)) {
-            const match = query.match(pattern)
-            if (match && match[1]) {
-                return match[1].toUpperCase()
-            }
-        }
-        return null
-    }
+    const extractTicker = (input: string): string | null => {
+        // Match either $TICKER or just TICKER format
+        const match = input.match(/\$?([A-Za-z]{1,5})/);
+        return match ? match[1].toUpperCase() : null;
+    };
 
     // Update the handleError function with Axios error type
     const handleError = (error: ApiErrorResponse) => {
@@ -459,191 +628,277 @@ export default function StockAnalyzerPage() {
         setIsLoading(false);
     };
 
+    // Simplified analyzeStock
     const analyzeStock = async (ticker: string) => {
         try {
-            setIsLoading(true);
             const upperTicker = ticker.toUpperCase();
             setCurrentTicker(upperTicker);
             
-            if (!tickerSymbols.includes(upperTicker)) {
-                setTickerSymbols(prev => [...prev, upperTicker]);
+            addMessage('system', `Analyzing ${upperTicker}...`);
+
+            const response = await fetch(
+                `https://us-central1-shopify-webscraper.cloudfunctions.net/app/analyzeStock?ticker=${upperTicker}`
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch stock data');
             }
 
-            const response = await axios.get<StockAnalysisResponse>(
-                `https://us-central1-shopify-webscraper.cloudfunctions.net/app/analyzeStock?ticker=${upperTicker}`,
-                {
-                    validateStatus: (status) => status < 500,
-                    timeout: 30000,
-                }
-            )
+            const data = await response.json();
 
-            if (response.data.success && response.data.data) {
-                addMessage('system', `Loading ${upperTicker} stock data...`)
+            if (data.success && data.data) {
                 addMessage('data', `Here are the current metrics for ${upperTicker}:`, {
-                    ...response.data.data,
+                    ...data.data,
                     ticker: upperTicker
-                })
-                
-                if (response.data.analysis) {
-                    addMessage('system', response.data.analysis)
+                });
+
+                if (data.analysis) {
+                    addMessage('system', data.analysis);
                 }
             } else {
-                throw new Error(response.data.error || 'Unknown error occurred')
+                throw new Error(data.message || 'Failed to analyze stock');
             }
-        } catch (error: unknown) {
-            handleError(error as ApiErrorResponse)
-        } finally {
-            setIsLoading(false)
+        } catch (error) {
+            console.error('Analysis Error:', error);
+            addMessage('error', `Unable to analyze ${ticker}. Please try again.`);
         }
-    }
+    };
 
+    // Simplified handleSubmit
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!input.trim()) return
+        e.preventDefault();
+        
+        const trimmedInput = input.trim();
+        if (!trimmedInput) return;
 
-        addMessage('user', input)
-        await analyzeStock(input)
-        setInput('')
-    }
+        // Add user's message and clear input
+        addMessage('user', trimmedInput);
+        setInput('');
+        
+        try {
+            setIsLoading(true);
 
-    // Add this effect to auto-scroll to bottom when new messages arrive
-    useEffect(() => {
-        const scrollToBottom = () => {
-            const chatContainer = document.getElementById('chat-container');
-            if (chatContainer) {
-                chatContainer.scrollTop = chatContainer.scrollHeight;
+            // Get AI response
+            const aiResponse = await queryAI(trimmedInput);
+            console.log('Processed AI Response:', aiResponse);
+
+            // Extract ticker (last word from response)
+            const parts = aiResponse.split(' ');
+            const ticker = parts[parts.length - 1];
+
+            if (ticker && ticker !== 'UNKNOWN') {
+                await analyzeStock(ticker);
+            } else {
+                addMessage('system', 'I couldn\'t identify a specific stock in your question. Please try asking about a specific company or use a stock symbol.');
             }
-        };
-        scrollToBottom();
+
+        } catch (error) {
+            console.error('Submit Error:', error);
+            addMessage('error', 'Sorry, I had trouble processing your request. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Add new data fetching functions
+    const fetchOptionsData = async (ticker: string) => {
+        try {
+            setCurrentTicker(ticker);
+            addMessage('system', `Fetching options data for ${ticker}...`);
+
+            const response = await axios.get(
+                `https://us-central1-shopify-webscraper.cloudfunctions.net/app/unusualOptions?ticker=${ticker}`
+            );
+
+            if (response.data.success) {
+                addMessage('data', `Here's the options analysis for ${ticker}:`, {
+                    ...response.data.data,
+                    ticker
+                });
+            } else {
+                throw new Error(response.data.message || 'Failed to fetch options data');
+            }
+        } catch (error) {
+            console.error('Options data error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+            addMessage('error', `Error fetching options data for ${ticker}: ${errorMessage}`);
+        }
+    };
+
+    const fetchPriceData = async (ticker: string) => {
+        try {
+            setCurrentTicker(ticker);
+            addMessage('system', `Fetching price data for ${ticker}...`);
+
+            const response = await axios.get(
+                `https://us-central1-shopify-webscraper.cloudfunctions.net/app/analyzeStock?ticker=${ticker}`
+            );
+
+            if (response.data.success && response.data.data) {
+                const priceData = response.data.data;
+                addMessage('data', `Current price data for ${ticker}:`, {
+                    price: priceData.price,
+                    changes: priceData.changes,
+                    ticker
+                });
+            } else {
+                throw new Error(response.data.message || 'Failed to fetch price data');
+            }
+        } catch (error) {
+            console.error('Price data error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+            addMessage('error', `Error fetching price data for ${ticker}: ${errorMessage}`);
+        }
+    };
+
+    const fetchVolumeData = async (ticker: string) => {
+        try {
+            setCurrentTicker(ticker);
+            addMessage('system', `Fetching volume data for ${ticker}...`);
+
+            const response = await axios.get(
+                `https://us-central1-shopify-webscraper.cloudfunctions.net/app/analyzeStock?ticker=${ticker}`
+            );
+
+            if (response.data.success && response.data.data) {
+                const volumeData = response.data.data;
+                addMessage('data', `Volume analysis for ${ticker}:`, {
+                    tradingData: volumeData.tradingData,
+                    ticker
+                });
+            } else {
+                throw new Error(response.data.message || 'Failed to fetch volume data');
+            }
+        } catch (error) {
+            console.error('Volume data error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+            addMessage('error', `Error fetching volume data for ${ticker}: ${errorMessage}`);
+        }
+    };
+
+    // Add this effect to scroll to bottom when messages update
+    useEffect(() => {
+        const chatContainer = document.getElementById('chat-container');
+        if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
     }, [messages]);
 
     return (
         <PageTemplate title="Stock Analyzer" description="Get AI-powered stock analysis">
-            <div className="flex flex-col h-[calc(100vh-var(--nav-height)-var(--header-height))] bg-white">
-                {/* Messages Section with Chart */}
-                <div 
-                    id="chat-container"
-                    className="flex-1 overflow-y-auto relative"
-                >
-                    <div className="max-w-3xl mx-auto p-4 space-y-6">
-                        
-                        
-                        {/* Messages follow */}
-                        {messages.map((message, index) => (
-                            <div
-                                key={index}
-                                className={`flex ${
-                                    message.type === 'user' ? 'justify-end' : 'justify-start'
-                                }`}
-                            >
+            <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleDarkMode}
+                className="fixed top-4 right-4 z-50"
+            >
+                {isDark ? (
+                    <Sun className="h-5 w-5" />
+                ) : (
+                    <Moon className="h-5 w-5" />
+                )}
+            </Button>
+
+            <div className="flex h-[calc(100vh-var(--nav-height)-var(--header-height))]">
+                {/* Chat Section */}
+                <div className="flex-1 flex flex-col bg-white dark:bg-gray-900">
+                    <div 
+                        id="chat-container"
+                        className="flex-1 overflow-y-auto relative"
+                    >
+                        <div className="max-w-3xl mx-auto p-4 space-y-6">
+                            {messages.map((message, index) => (
                                 <div
-                                    className={`max-w-[90%] rounded-2xl px-4 py-3 ${
-                                        message.type === 'user'
-                                            ? 'bg-primary text-primary-foreground'
-                                            : message.type === 'error'
-                                            ? 'bg-destructive/10 text-destructive'
-                                            : message.type === 'data'
-                                            ? 'bg-white border border-gray-200'
-                                            : 'bg-gray-100'
+                                    key={index}
+                                    className={`flex ${
+                                        message.type === 'user' ? 'justify-end' : 'justify-start'
                                     }`}
                                 >
-                                    <AnimatedMessage content={message.content} />
-                                    {message.type === 'data' && message.data && (
-                                        <div className="mt-6 space-y-6">
-                                            <StockDataDisplay 
-                                                data={message.data as StockData} 
-                                                symbol={currentTicker} 
-                                            />
-                                        </div>
-                                    )}
-                                    {message.type === 'chart' ? (
-                                        <div className="mt-4">
-                                            <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
-                                                <div className="flex justify-between items-center p-4 border-b">
-                                                    <h3 className="font-medium">{message.ticker} Price Chart</h3>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => setShowCandlestick(true)}
-                                                    >
-                                                        Full Screen
-                                                    </Button>
-                                                </div>
-                                                {message.ticker && (
-                                                    <EnhancedTradingViewChart 
-                                                        symbol={message.ticker} 
-                                                        containerId={`chart-${message.ticker}-${index}`} 
-                                                    />
-                                                )}
+                                    <div
+                                        className={`max-w-[90%] rounded-2xl px-4 py-3 ${
+                                            message.type === 'user'
+                                                ? 'bg-primary text-primary-foreground'
+                                                : message.type === 'error'
+                                                ? 'bg-destructive/10 text-destructive dark:bg-destructive/20'
+                                                : message.type === 'data'
+                                                ? 'bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700'
+                                                : 'bg-gray-100 dark:bg-gray-800'
+                                        }`}
+                                    >
+                                        <AnimatedMessage content={message.content} />
+                                        {message.type === 'data' && message.data && (
+                                            <div className="mt-6">
+                                                <StockDataDisplay 
+                                                    data={message.data as StockData} 
+                                                    symbol={message.data.ticker || currentTicker} 
+                                                />
                                             </div>
-                                        </div>
-                                    ) : null}
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
+                    </div>
+                    
+                    {/* Input Section */}
+                    <div className="h-24 border-t bg-white/80 dark:bg-gray-900/80 dark:border-gray-700 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-gray-900/60">
+                        <div className="max-w-3xl mx-auto p-4">
+                            <form onSubmit={handleSubmit} className="flex gap-2">
+                                <Input
+                                    type="text"
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    placeholder="Ask about a stock (e.g., 'Analyze AAPL' or '$TSLA')"
+                                    disabled={isLoading}
+                                    className="rounded-full border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                                />
+                                <Button 
+                                    type="submit" 
+                                    disabled={isLoading || !input.trim()}
+                                    className="rounded-full"
+                                >
+                                    {isLoading ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Send className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            </form>
+                        </div>
                     </div>
                 </div>
 
-                {/* Input Section */}
-                <div className="h-24 border-t bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-                    <div className="max-w-3xl mx-auto p-4">
-                        <form onSubmit={handleSubmit} className="flex gap-2">
-                            <Input
-                                type="text"
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                placeholder="Ask about a stock (e.g., 'Analyze AAPL' or '$TSLA')"
-                                disabled={isLoading}
-                                className="rounded-full border-gray-200"
-                            />
-                            <Button 
-                                type="submit" 
-                                disabled={isLoading || !input.trim()}
-                                className="rounded-full"
-                            >
-                                <Send className="h-4 w-4" />
-                            </Button>
-                        </form>
+                {/* News Panel */}
+                {currentTicker && (
+                    <div className="w-96 border-l bg-gray-50 dark:bg-gray-800 dark:border-gray-700 overflow-y-auto p-4">
+                        <NewsPanel ticker={currentTicker} />
+                    </div>
+                )}
+            </div>
+
+            {/* Fullscreen Chart Modal */}
+            {showCandlestick && currentTicker && (
+                <div className="fixed inset-0 bg-black/90 z-50">
+                    <div className="absolute top-4 right-4 z-50">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setShowCandlestick(false)}
+                            className="bg-white/10 hover:bg-white/20"
+                        >
+                            <X className="h-4 w-4 text-white" />
+                        </Button>
+                    </div>
+                    <div className="h-full p-4">
+                        <EnhancedTradingViewChart 
+                            symbol={currentTicker} 
+                            containerId={`fullscreen-chart`} 
+                        />
                     </div>
                 </div>
-            </div>
+            )}
         </PageTemplate>
     )
-}
-
-// Remove the StockChart component and replace it with this simpler version
-function StockChart({ symbol }: { symbol: string }) {
-    useEffect(() => {
-        const script = document.createElement('script');
-        script.src = 'https://s3.tradingview.com/tv.js';
-        script.async = true;
-        document.head.appendChild(script);
-
-        script.onload = () => {
-            // @ts-ignore
-            new TradingView.widget({
-                width: '100%',
-                height: 500,
-                symbol: `${symbol}`,
-                interval: 'D',
-                timezone: 'exchange',
-                theme: 'light',
-                style: '1',
-                toolbar_bg: '#f1f3f6',
-                enable_publishing: false,
-                allow_symbol_change: true,
-                container_id: `tradingview_${symbol}`,
-                hide_side_toolbar: false,
-            });
-        };
-
-        return () => {
-            const container = document.getElementById(`tradingview_${symbol}`);
-            if (container) container.innerHTML = '';
-        };
-    }, [symbol]);
-
-    return <div id={`tradingview_${symbol}`} />;
 }
 
 // Add custom tooltip component
