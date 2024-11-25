@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import axios, { AxiosError } from 'axios'
-import { Send, X, Moon, Sun, Plus } from 'lucide-react'
+import { Send, X, Moon, Sun, Plus, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import PageTemplate from '@/components/layout/PageTemplate'
@@ -209,43 +209,27 @@ function StockDataDisplay({ data, symbol }: { data: StockData; symbol: string })
     return (
         <div className="space-y-6 mt-4">
             <div className="border rounded-xl shadow-sm overflow-hidden">
-                <div className="flex justify-between items-center p-4 border-b">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 border-b gap-2">
                     <h3 className="font-medium">{symbol} Price Chart</h3>
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setShowCandlestick(true)}
+                        className="w-full sm:w-auto"
                     >
                         Full Screen
                     </Button>
                 </div>
-                <EnhancedTradingViewChart 
-                    symbol={symbol} 
-                    containerId={containerId} 
-                />
-            </div>
-
-            {showCandlestick && (
-                <div className="fixed inset-0 bg-black z-50">
-                    <div className="absolute top-4 right-4 z-50">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setShowCandlestick(false)}
-                            className="bg-white/10 hover:bg-white/20"
-                        >
-                            <X className="h-4 w-4 text-white" />
-                        </Button>
-                    </div>
+                <div className="h-[300px] sm:h-[400px]">
                     <EnhancedTradingViewChart 
                         symbol={symbol} 
-                        containerId={fullscreenId} 
+                        containerId={containerId} 
                     />
                 </div>
-            )}
+            </div>
 
-            {/* Horizontally Scrollable Metrics Section */}
-            <div className="overflow-x-auto pb-4">
+            {/* Metrics Section - Scrollable on mobile */}
+            <div className="overflow-x-auto -mx-4 px-4 pb-4">
                 <div className="flex gap-4 min-w-max">
                     {/* Price Information */}
                     <div className=" border rounded-xl p-4 shadow-sm min-w-[280px]">
@@ -614,6 +598,7 @@ export default function StockAnalyzerPage() {
         { label: 'Settings', path: '/settings' }
     ]);
     const [pathname, setPathname] = useState('/');
+    const [showSidebar, setShowSidebar] = useState(false);
 
     const tickerPatterns = {
         dollarSymbol: /\$([A-Za-z]{1,5})\b/,
@@ -862,9 +847,20 @@ export default function StockAnalyzerPage() {
 
     return (
         <PageTemplate title="Stock Analyzer" description="Get AI-powered stock analysis">
-            <div className="flex h-[calc(100vh-var(--nav-height)-var(--header-height))]">
-                {/* Chat History Sidebar - Make it sticky */}
-                <div className="w-64 bg-[#0F0F10] border-r border-gray-700 flex flex-col h-screen sticky top-0">
+            <div className="flex flex-col md:flex-row h-[calc(100vh-var(--nav-height)-var(--header-height))]">
+                {/* Chat History Sidebar - Collapsible on mobile */}
+                <div className={`w-full md:w-64 bg-[#0F0F10] border-r border-gray-700 flex flex-col ${
+                    showSidebar ? 'h-screen fixed z-50 md:relative' : 'hidden md:flex'
+                }`}>
+                    {/* Add mobile close button */}
+                    <button 
+                        className="md:hidden absolute top-4 right-4 p-2"
+                        onClick={() => setShowSidebar(false)}
+                    >
+                        <X className="h-6 w-6" />
+                    </button>
+                    
+                    {/* Existing sidebar content */}
                     {/* New Chat Button */}
                     <div className="p-4 border-b border-gray-700">
                         <button
@@ -918,14 +914,22 @@ export default function StockAnalyzerPage() {
                     </div>
                 </div>
 
-                {/* Main Content Area - flexible width */}
-                <div className="flex flex-1">
+                {/* Mobile menu button */}
+                <button 
+                    className="md:hidden fixed top-4 left-4 z-40 p-2 bg-[#0F0F10] rounded-md"
+                    onClick={() => setShowSidebar(true)}
+                >
+                    <Menu className="h-6 w-6" />
+                </button>
+
+                {/* Main Content Area */}
+                <div className="flex flex-1 flex-col md:flex-row">
                     {/* Chat Section */}
                     <div className="flex-1 flex flex-col bg-[#0F0F10] relative">
                         {/* Messages Container */}
                         <div 
                             id="chat-container"
-                            className="flex-1 overflow-y-auto mb-[76px]"
+                            className="flex-1 overflow-y-auto mb-[76px] md:mb-[96px]"
                         >
                             <div className="max-w-3xl mx-auto p-4 space-y-6">
                                 {messages.map((message, index) => (
@@ -961,8 +965,8 @@ export default function StockAnalyzerPage() {
                             </div>
                         </div>
 
-                        {/* Input Section - fixed at bottom */}
-                        <div className="fixed bottom-0 left-64 right-96 border-t bg-[#0F0F10] py-4">
+                        {/* Input Section - adjusted for mobile */}
+                        <div className="fixed bottom-0 left-0 md:left-64 right-0 md:right-96 border-t bg-[#0F0F10] py-4">
                             <div className="max-w-3xl mx-auto px-4">
                                 <form onSubmit={handleSubmit} className="flex gap-2">
                                     <Input
@@ -989,9 +993,9 @@ export default function StockAnalyzerPage() {
                         </div>
                     </div>
 
-                    {/* News Panel - sticky with clear background */}
+                    {/* News Panel - Hidden on mobile, visible on md screens and up */}
                     {currentTicker && (
-                        <div className="w-96 border-l border-gray-700 bg-[#0F0F10] sticky top-0 h-screen">
+                        <div className="hidden md:block md:w-96 border-t md:border-l border-gray-700 bg-[#0F0F10] md:sticky md:top-0 md:h-screen">
                             <div className="p-4 border-b border-gray-700 bg-[#0F0F10]">
                                 <h2 className="text-lg font-semibold text-white">News</h2>
                                 <p className="text-sm text-gray-400">{currentTicker} Latest Updates</p>
