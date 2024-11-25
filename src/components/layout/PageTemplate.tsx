@@ -42,37 +42,15 @@ const NavItem = ({ label, path, active }: { label: string; path: string; active:
 };
 
 const PageTemplate = ({ children, title, description }: PageTemplateProps) => {
-  const router = useRouter();
-  const pathname = usePathname();
-
   return (
-    <div className="flex flex-col min-h-screen bg-white">
-      <nav className="border-b bg-white">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex space-x-8">
-            {navigationItems.map((item) => (
-              <Link
-                key={item.path}
-                href={item.path}
-                className={`py-4 px-3 text-sm font-medium ${
-                  pathname === item.path
-                    ? 'border-b-2 border-primary text-primary'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </nav>
-      <header className="border-b bg-white">
+    <div className="flex flex-col min-h-screen bg-background">
+      <header className="border-b border-border bg-background">
         <div className="max-w-3xl mx-auto p-4">
-          <h1 className="text-2xl font-bold">{title}</h1>
+          <h1 className="text-2xl font-bold text-foreground">{title}</h1>
           <p className="text-muted-foreground">{description}</p>
         </div>
       </header>
-      <main className="flex-1 relative bg-white">
+      <main className="flex-1 relative bg-background">
         {children}
       </main>
     </div>

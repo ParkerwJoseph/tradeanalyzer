@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import axios, { AxiosError } from 'axios'
-import { Send, X, Moon, Sun } from 'lucide-react'
+import { Send, X, Moon, Sun, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import PageTemplate from '@/components/layout/PageTemplate'
@@ -11,7 +11,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { format } from 'date-fns';
 import { Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic'
-import { useDarkMode } from '@/hooks/useDarkMode'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import Link from 'next/link'
 
 // Types
 interface StockData {
@@ -131,9 +132,11 @@ const EnhancedTradingViewChart = ({ symbol, containerId }: { symbol: string; con
                 symbol: symbol,
                 interval: 'D',
                 timezone: 'exchange',
-                theme: 'light',
+                theme: 'dark',
                 style: '1',
-                toolbar_bg: '#f1f3f6',
+                toolbar_bg: '#1E222D',
+                backgroundColor: "#0F0F10",
+                gridColor: "#1E222D",
                 enable_publishing: false,
                 allow_symbol_change: true,
                 container_id: containerId,
@@ -142,7 +145,7 @@ const EnhancedTradingViewChart = ({ symbol, containerId }: { symbol: string; con
                     "MACD@tv-basicstudies",
                     "RSI@tv-basicstudies"
                 ],
-                loading_screen: { backgroundColor: "#ffffff" },
+                loading_screen: { backgroundColor: "#0F0F10" },
                 hide_side_toolbar: false,
                 show_popup_button: true,
                 popup_width: '1000',
@@ -162,11 +165,7 @@ const EnhancedTradingViewChart = ({ symbol, containerId }: { symbol: string; con
     return (
         <div className="relative">
             <div id={containerId} className="w-full" />
-            {isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-            )}
+           
         </div>
     );
 };
@@ -209,7 +208,7 @@ function StockDataDisplay({ data, symbol }: { data: StockData; symbol: string })
     
     return (
         <div className="space-y-6 mt-4">
-            <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
+            <div className="border rounded-xl shadow-sm overflow-hidden">
                 <div className="flex justify-between items-center p-4 border-b">
                     <h3 className="font-medium">{symbol} Price Chart</h3>
                     <Button
@@ -249,8 +248,8 @@ function StockDataDisplay({ data, symbol }: { data: StockData; symbol: string })
             <div className="overflow-x-auto pb-4">
                 <div className="flex gap-4 min-w-max">
                     {/* Price Information */}
-                    <div className="bg-white border rounded-xl p-4 shadow-sm min-w-[280px]">
-                        <h3 className="font-medium mb-3 text-gray-900">Price Information</h3>
+                    <div className=" border rounded-xl p-4 shadow-sm min-w-[280px]">
+                        <h3 className="font-medium mb-3 text-white">Price Information</h3>
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-gray-600">Current:</span>
@@ -270,31 +269,31 @@ function StockDataDisplay({ data, symbol }: { data: StockData; symbol: string })
                     </div>
 
                     {/* Technical Levels */}
-                    <div className="bg-white border rounded-xl p-4 shadow-sm min-w-[280px]">
-                        <h3 className="font-medium mb-3 text-gray-900">Technical Levels</h3>
+                    <div className="border rounded-xl p-4 shadow-sm min-w-[280px]">
+                        <h3 className="font-medium mb-3 text-white">Technical Levels</h3>
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-gray-600">50-Day MA:</span>
-                                <span className="font-medium">${safeNumber(data.technicalLevels.fiftyDayMA)}</span>
+                                <span className="font-medium text-white">${safeNumber(data.technicalLevels.fiftyDayMA)}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-gray-600">200-Day MA:</span>
-                                <span className="font-medium">${safeNumber(data.technicalLevels.twoHundredDayMA)}</span>
+                                <span className="font-medium text-white">${safeNumber(data.technicalLevels.twoHundredDayMA)}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-gray-600">Support:</span>
-                                <span className="font-medium text-green-600">${safeNumber(data.technicalLevels.support)}</span>
+                                <span className="font-medium text-white">${safeNumber(data.technicalLevels.support)}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-gray-600">Resistance:</span>
-                                <span className="font-medium text-red-600">${safeNumber(data.technicalLevels.resistance)}</span>
+                                <span className="font-medium text-white">${safeNumber(data.technicalLevels.resistance)}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Changes */}
-                    <div className="bg-white border rounded-xl p-4 shadow-sm min-w-[280px]">
-                        <h3 className="font-medium mb-3 text-gray-900">Price Changes</h3>
+                    <div className="border rounded-xl p-4 shadow-sm min-w-[280px]">
+                        <h3 className="font-medium mb-3 text-white">Price Changes</h3>
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-gray-600">Daily Change:</span>
@@ -311,56 +310,66 @@ function StockDataDisplay({ data, symbol }: { data: StockData; symbol: string })
                         </div>
                     </div>
 
-                    {/* Volume */}
-                    <div className="bg-white border rounded-xl p-4 shadow-sm min-w-[280px]">
-                        <h3 className="font-medium mb-3 text-gray-900">Volume Analysis</h3>
+                    {/* Trading Data */}
+                    <div className="border rounded-xl p-4 shadow-sm min-w-[280px]">
+                        <h3 className="font-medium mb-3 text-white">Trading Data</h3>
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-gray-600">Volume:</span>
-                                <span className="font-medium">{formatNumber(data.tradingData.volume)}</span>
+                                <span className="font-medium text-white">{formatNumber(data.tradingData.volume)}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-gray-600">Avg Volume:</span>
-                                <span className="font-medium">{formatNumber(data.tradingData.avgVolume)}</span>
+                                <span className="font-medium text-white">{formatNumber(data.tradingData.avgVolume)}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-gray-600">Volume Ratio:</span>
-                                <span className="font-medium">{safeNumber(data.tradingData.volumeRatio)}</span>
+                                <span className="font-medium text-white">{safeNumber(data.tradingData.volumeRatio)}</span>
                             </div>
+                            {data.tradingData.beta && (
+                                <div className="flex justify-between">
+                                    <span className="text-gray-600">Beta:</span>
+                                    <span className="font-medium text-white">{safeNumber(data.tradingData.beta)}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* Valuation */}
-                    <div className="bg-white border rounded-xl p-4 shadow-sm min-w-[280px]">
-                        <h3 className="font-medium mb-3 text-gray-900">Valuation</h3>
+                    {/* Valuation Metrics */}
+                    <div className="border rounded-xl p-4 shadow-sm min-w-[280px]">
+                        <h3 className="font-medium mb-3 text-white">Valuation Metrics</h3>
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-gray-600">Market Cap:</span>
-                                <span className="font-medium">${formatLargeNumber(data.valuationMetrics.marketCap)}</span>
+                                <span className="font-medium text-white">${formatLargeNumber(data.valuationMetrics.marketCap)}</span>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">P/E Ratio:</span>
-                                <span className="font-medium">{safeNumber(data.valuationMetrics.peRatio)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Forward P/E:</span>
-                                <span className="font-medium">{safeNumber(data.valuationMetrics.forwardPE)}</span>
-                            </div>
+                            {data.valuationMetrics.peRatio && (
+                                <div className="flex justify-between">
+                                    <span className="text-gray-600">P/E Ratio:</span>
+                                    <span className="font-medium text-white">{safeNumber(data.valuationMetrics.peRatio)}</span>
+                                </div>
+                            )}
+                            {data.valuationMetrics.forwardPE && (
+                                <div className="flex justify-between">
+                                    <span className="text-gray-600">Forward P/E:</span>
+                                    <span className="font-medium text-white">{safeNumber(data.valuationMetrics.forwardPE)}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* Dividend Information */}
-                    {data.dividend && data.dividend.yield !== 'N/A' && (
-                        <div className="bg-white border rounded-xl p-4 shadow-sm min-w-[280px]">
-                            <h3 className="font-medium mb-3 text-gray-900">Dividend</h3>
+                    {/* Dividend Information (if available) */}
+                    {data.dividend && (
+                        <div className="border rounded-xl p-4 shadow-sm min-w-[280px]">
+                            <h3 className="font-medium mb-3 text-white">Dividend Information</h3>
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
                                     <span className="text-gray-600">Yield:</span>
-                                    <span className="font-medium">{data.dividend.yield}</span>
+                                    <span className="font-medium text-white">{data.dividend.yield}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-gray-600">Rate:</span>
-                                    <span className="font-medium">${data.dividend.rate}</span>
+                                    <span className="font-medium text-white">${data.dividend.rate}</span>
                                 </div>
                             </div>
                         </div>
@@ -471,7 +480,7 @@ const NewsPanel = ({ ticker }: { ticker: string }) => {
                         href={article.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block p-4 rounded-lg border bg-white dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        className="block p-4 rounded-lg border bg-[#0F0F10] dark:bg-gray-800 dark:border-gray-700 hover:bg-gray transition-colors"
                     >
                         <div className="flex gap-4">
                             {article.thumbnail && (
@@ -580,7 +589,14 @@ const queryAI = async (input: string): Promise<string> => {
     }
 };
 
-// Main Component
+// Add this interface at the top with your other types
+interface ChatSession {
+    id: string;
+    title: string;
+    timestamp: Date;
+    messages: ConversationMessage[];
+}
+
 export default function StockAnalyzerPage() {
     const [messages, setMessages] = useState<ConversationMessage[]>([]);
     const [input, setInput] = useState('');
@@ -589,7 +605,15 @@ export default function StockAnalyzerPage() {
     const [showCandlestick, setShowCandlestick] = useState(false);
     const [tickerSymbols, setTickerSymbols] = useState<string[]>([]);
     const [error, setError] = useState<string>('');
-    const { isDark, toggleDarkMode } = useDarkMode();
+    const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
+    const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+    const [navigationItems, setNavigationItems] = useState([
+        { label: 'Home', path: '/' },
+        { label: 'Stock Analysis', path: '/stock-analysis' },
+        { label: 'Stock News', path: '/stock-news' },
+        { label: 'Settings', path: '/settings' }
+    ]);
+    const [pathname, setPathname] = useState('/');
 
     const tickerPatterns = {
         dollarSymbol: /\$([A-Za-z]{1,5})\b/,
@@ -597,7 +621,33 @@ export default function StockAnalyzerPage() {
         standalone: /\b([A-Za-z]{1,5})\b/,
     }
 
-    const addMessage = (
+    const generateChatTitle = async (content: string): Promise<string> => {
+        const titlePrompt = `Generate a two-word title for a chat about: "${content}". 
+        Response should be exactly two words, capitalized. Example: "Stock Analysis" or "Tesla Review"`;
+        
+        try {
+            const response = await queryAI(titlePrompt);
+            return response.trim();
+        } catch (error) {
+            console.error('Failed to generate title:', error);
+            return 'New Chat';
+        }
+    };
+
+    const createNewChat = () => {
+        const newChatId = crypto.randomUUID(); // Generate unique ID
+        const newChat: ChatSession = {
+            id: newChatId,
+            title: 'New Chat',
+            timestamp: new Date(),
+            messages: []
+        };
+        setChatHistory(prev => [...prev, newChat]);
+        setCurrentChatId(newChatId);
+        setMessages([]); // Clear current messages
+    };
+
+    const addMessage = async (
         type: ConversationMessage['type'],
         content: string,
         data?: Partial<StockData> & { ticker?: string }
@@ -609,7 +659,33 @@ export default function StockAnalyzerPage() {
             data,
             ticker: data?.ticker
         };
+
         setMessages(prev => [...prev, newMessage]);
+
+        // Update chat title with first user message
+        if (type === 'user' && messages.length === 0 && currentChatId) {
+            const newTitle = await generateChatTitle(content);
+            setChatHistory(prev => prev.map(chat => 
+                chat.id === currentChatId 
+                    ? { ...chat, title: newTitle, messages: [...chat.messages, newMessage] }
+                    : chat
+            ));
+        } else if (currentChatId) {
+            // Update messages in chat history
+            setChatHistory(prev => prev.map(chat => 
+                chat.id === currentChatId 
+                    ? { ...chat, messages: [...chat.messages, newMessage] }
+                    : chat
+            ));
+        }
+    };
+
+    const switchChat = (chatId: string) => {
+        const chat = chatHistory.find(c => c.id === chatId);
+        if (chat) {
+            setCurrentChatId(chatId);
+            setMessages(chat.messages);
+        }
     };
 
     const extractTicker = (input: string): string | null => {
@@ -786,94 +862,148 @@ export default function StockAnalyzerPage() {
 
     return (
         <PageTemplate title="Stock Analyzer" description="Get AI-powered stock analysis">
-            <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleDarkMode}
-                className="fixed top-4 right-4 z-50"
-            >
-                {isDark ? (
-                    <Sun className="h-5 w-5" />
-                ) : (
-                    <Moon className="h-5 w-5" />
-                )}
-            </Button>
-
             <div className="flex h-[calc(100vh-var(--nav-height)-var(--header-height))]">
-                {/* Chat Section */}
-                <div className="flex-1 flex flex-col bg-white dark:bg-gray-900">
-                    <div 
-                        id="chat-container"
-                        className="flex-1 overflow-y-auto relative"
-                    >
-                        <div className="max-w-3xl mx-auto p-4 space-y-6">
-                            {messages.map((message, index) => (
-                                <div
-                                    key={index}
-                                    className={`flex ${
-                                        message.type === 'user' ? 'justify-end' : 'justify-start'
+                {/* Chat History Sidebar - Make it sticky */}
+                <div className="w-64 bg-[#0F0F10] border-r border-gray-700 flex flex-col h-screen sticky top-0">
+                    {/* New Chat Button */}
+                    <div className="p-4 border-b border-gray-700">
+                        <button
+                            onClick={() => {
+                                setMessages([]);
+                                setCurrentTicker('');
+                                // Add any other reset logic you need
+                            }}
+                            className="w-full px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Plus className="h-4 w-4" />
+                            New Chat
+                        </button>
+                    </div>
+
+                    {/* Navigation Links */}
+                    <nav className="p-4 border-b border-gray-700">
+                        <div className="space-y-1">
+                            {navigationItems.map((item) => (
+                                <Link
+                                    key={item.path}
+                                    href={item.path}
+                                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                                        pathname === item.path
+                                            ? 'bg-gray-800 text-white'
+                                            : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
                                     }`}
                                 >
-                                    <div
-                                        className={`max-w-[90%] rounded-2xl px-4 py-3 ${
-                                            message.type === 'user'
-                                                ? 'bg-primary text-primary-foreground'
-                                                : message.type === 'error'
-                                                ? 'bg-destructive/10 text-destructive dark:bg-destructive/20'
-                                                : message.type === 'data'
-                                                ? 'bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700'
-                                                : 'bg-gray-100 dark:bg-gray-800'
-                                        }`}
-                                    >
-                                        <AnimatedMessage content={message.content} />
-                                        {message.type === 'data' && message.data && (
-                                            <div className="mt-6">
-                                                <StockDataDisplay 
-                                                    data={message.data as StockData} 
-                                                    symbol={message.data.ticker || currentTicker} 
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
+                                    <span>{item.label}</span>
+                                </Link>
                             ))}
                         </div>
-                    </div>
-                    
-                    {/* Input Section */}
-                    <div className="h-24 border-t bg-white/80 dark:bg-gray-900/80 dark:border-gray-700 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-gray-900/60">
-                        <div className="max-w-3xl mx-auto p-4">
-                            <form onSubmit={handleSubmit} className="flex gap-2">
-                                <Input
-                                    type="text"
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    placeholder="Ask about a stock (e.g., 'Analyze AAPL' or '$TSLA')"
-                                    disabled={isLoading}
-                                    className="rounded-full border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                                />
-                                <Button 
-                                    type="submit" 
-                                    disabled={isLoading || !input.trim()}
-                                    className="rounded-full"
-                                >
-                                    {isLoading ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <Send className="h-4 w-4" />
-                                    )}
-                                </Button>
-                            </form>
+                    </nav>
+
+                    {/* Chat History */}
+                    <div className="flex-1 overflow-y-auto p-4">
+                        <div className="space-y-2">
+                            {messages.length > 0 ? (
+                                <div className="p-2 rounded-lg bg-gray-800/50 text-gray-400">
+                                    <p className="font-medium truncate">Current Chat</p>
+                                    <p className="text-sm text-gray-500">
+                                        {new Date().toLocaleDateString()}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="text-center text-gray-400 py-4">
+                                    No chat history
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
 
-                {/* News Panel */}
-                {currentTicker && (
-                    <div className="w-96 border-l bg-gray-50 dark:bg-gray-800 dark:border-gray-700 overflow-y-auto p-4">
-                        <NewsPanel ticker={currentTicker} />
+                {/* Main Content Area - flexible width */}
+                <div className="flex flex-1">
+                    {/* Chat Section */}
+                    <div className="flex-1 flex flex-col bg-[#0F0F10] relative">
+                        {/* Messages Container */}
+                        <div 
+                            id="chat-container"
+                            className="flex-1 overflow-y-auto mb-[76px]"
+                        >
+                            <div className="max-w-3xl mx-auto p-4 space-y-6">
+                                {messages.map((message, index) => (
+                                    <div
+                                        key={index}
+                                        className={`flex ${
+                                            message.type === 'user' ? 'justify-end' : 'justify-start'
+                                        }`}
+                                    >
+                                        <div
+                                            className={`max-w-[90%] rounded-2xl px-4 py-3 ${
+                                                message.type === 'user'
+                                                    ? 'bg-primary text-primary-foreground'
+                                                    : message.type === 'error'
+                                                    ? 'bg-destructive/10 text-destructive dark:bg-destructive/20'
+                                                    : message.type === 'data'
+                                                    ? 'bg-[#0F0F10]'
+                                                    : 'bg-[#0F0F10]'
+                                            }`}
+                                        >
+                                            <AnimatedMessage content={message.content} />
+                                            {message.type === 'data' && message.data && (
+                                                <div className="mt-6">
+                                                    <StockDataDisplay 
+                                                        data={message.data as StockData} 
+                                                        symbol={message.data.ticker || currentTicker} 
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Input Section - fixed at bottom */}
+                        <div className="fixed bottom-0 left-64 right-96 border-t bg-[#0F0F10] py-4">
+                            <div className="max-w-3xl mx-auto px-4">
+                                <form onSubmit={handleSubmit} className="flex gap-2">
+                                    <Input
+                                        type="text"
+                                        value={input}
+                                        onChange={(e) => setInput(e.target.value)}
+                                        placeholder="Ask about a stock (e.g., 'Analyze AAPL' or '$TSLA')"
+                                        disabled={isLoading}
+                                        className="rounded-full border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                                    />
+                                    <Button 
+                                        type="submit" 
+                                        disabled={isLoading || !input.trim()}
+                                        className="rounded-full"
+                                    >
+                                        {isLoading ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Send className="h-4 w-4" />
+                                        )}
+                                    </Button>
+                                </form>
+                            </div>
+                        </div>
                     </div>
-                )}
+
+                    {/* News Panel - sticky with clear background */}
+                    {currentTicker && (
+                        <div className="w-96 border-l border-gray-700 bg-[#0F0F10] sticky top-0 h-screen">
+                            <div className="p-4 border-b border-gray-700 bg-[#0F0F10]">
+                                <h2 className="text-lg font-semibold text-white">News</h2>
+                                <p className="text-sm text-gray-400">{currentTicker} Latest Updates</p>
+                            </div>
+                            <div className="overflow-y-auto h-[calc(100vh-12rem)]">
+                                <div className="p-4">
+                                    <NewsPanel ticker={currentTicker} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Fullscreen Chart Modal */}
