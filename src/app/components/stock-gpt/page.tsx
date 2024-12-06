@@ -1168,31 +1168,37 @@ export default function StockAnalyzerPage() {
                         <Button 
                             variant="ghost" 
                             className="w-full justify-start gap-2"
+                            onClick={() => router.push('/components/stock-gpt')}
                         >
                             <Search className="h-4 w-4" />
                             Home
                         </Button>
                         
-                        {/* Add new navigation items */}
+                        {/* Discover */}
                         <Button 
                             variant="ghost" 
                             className="w-full justify-start gap-2"
+                            onClick={() => router.push('/components/discover')}
                         >
                             <Compass className="h-4 w-4" />
                             Discover
                         </Button>
 
+                        {/* Library */}
                         <Button 
                             variant="ghost" 
                             className="w-full justify-start gap-2"
+                            onClick={() => router.push('/components/library')}
                         >
                             <Library className="h-4 w-4" />
                             Library
                         </Button>
 
+                        {/* Watchlist */}
                         <Button 
                             variant="ghost" 
                             className="w-full justify-start gap-2"
+                            onClick={() => router.push('/components/watchlist')}
                         >
                             <BookmarkIcon className="h-4 w-4" />
                             Watchlist
