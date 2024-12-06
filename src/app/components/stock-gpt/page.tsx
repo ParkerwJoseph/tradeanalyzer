@@ -1,18 +1,17 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
-import axios, { AxiosError } from 'axios'
-import { Send, X, Moon, Sun, Plus, Menu } from 'lucide-react'
+import { useState, useEffect, useMemo, createContext, useContext, memo } from 'react'
+import { Send, X, Moon, Sun, Plus, ChevronLeft, ChevronRight, Loader2, Search, Newspaper, User, Compass, Library, BookmarkIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import PageTemplate from '@/components/layout/PageTemplate'
 import { useTypewriter } from '@/hooks/useTypewriter'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ComposedChart, Bar } from 'recharts';
-import { format } from 'date-fns';
-import { Loader2 } from 'lucide-react';
-import dynamic from 'next/dynamic'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import Link from 'next/link'
+import { cn } from '@/lib/utils'
+import axios from 'axios'
+import { format } from 'date-fns'
+import PageTemplate from '@/components/layout/PageTemplate'
+import { useTheme } from "next-themes"
+import { useRouter } from 'next/navigation'
 
 // Types
 interface StockData {
@@ -28,6 +27,8 @@ interface StockData {
             low: number;
             high: number;
         };
+        fiftyDayMA?: number;
+        twoHundredDayMA?: number;
     };
     technicalLevels: {
         fiftyDayMA: number;
@@ -171,23 +172,25 @@ const EnhancedTradingViewChart = ({ symbol, containerId }: { symbol: string; con
 };
 
 function formatNumber(num: number | undefined | null): string {
-    if (num === undefined || num === null) return 'N/A';
+    if (num === undefined || num === null || isNaN(num)) return 'N/A';
+    if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
+    if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
     return num.toLocaleString();
 }
 
-function formatLargeNumber(number: number | undefined | null): string {
-    if (!number) return 'N/A';
-    if (number >= 1e12) return `${(number / 1e12).toFixed(2)}T`;
-    if (number >= 1e9) return `${(number / 1e9).toFixed(2)}B`;
-    if (number >= 1e6) return `${(number / 1e6).toFixed(2)}M`;
-    return number.toFixed(2);
+function formatLargeNumber(num: number | undefined | null): string {
+    if (num === undefined || num === null || isNaN(num)) return 'N/A';
+    if (num >= 1e12) return `$${(num / 1e12).toFixed(2)}T`;
+    if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
+    if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
+    return `$${num.toLocaleString()}`;
 }
 
-function safeNumber(value: number | undefined | null, decimals = 2): string {
-    if (value === null || value === undefined || isNaN(value)) {
+function safeNumberFormat(value: any, prefix: string = ''): string {
+    if (value === undefined || value === null || isNaN(Number(value))) {
         return 'N/A';
     }
-    return Number(value).toFixed(decimals);
+    return `${prefix}${Number(value).toFixed(2)}`;
 }
 
 // Add this function to transform the API data
@@ -200,297 +203,205 @@ function transformChartData(apiResponse: any): ChartDataPoint[] {
     }));
 }
 
-// Stock Data Display Component
-function StockDataDisplay({ data, symbol }: { data: StockData; symbol: string }) {
-    const [showCandlestick, setShowCandlestick] = useState(false);
-    const containerId = useMemo(() => generateChartId(symbol, Date.now()), [symbol]);
-    const fullscreenId = useMemo(() => `fullscreen_${containerId}`, [containerId]);
-    
-    return (
-        <div className="space-y-6 mt-4">
-            <div className="border rounded-xl shadow-sm overflow-hidden">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 border-b gap-2">
-                    <h3 className="font-medium">{symbol} Price Chart</h3>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowCandlestick(true)}
-                        className="w-full sm:w-auto"
-                    >
-                        Full Screen
-                    </Button>
-                </div>
-                <div className="h-[300px] sm:h-[400px]">
-                    <EnhancedTradingViewChart 
-                        symbol={symbol} 
-                        containerId={containerId} 
-                    />
-                </div>
-            </div>
+// Add the new AnimatedMessage component
+const AnimatedMessage = ({ content }: { content: string }) => {
+  const { displayedText, isTyping } = useTypewriter(content)
+  
+  return (
+    <div className="whitespace-pre-wrap">
+      {displayedText}
+      {isTyping && <span className="inline-block w-1 h-4 ml-1 bg-current animate-pulse"/>}
+    </div>
+  )
+}
 
-            {/* Metrics Section - Scrollable on mobile */}
-            <div className="overflow-x-auto -mx-4 px-4 pb-4">
-                <div className="flex gap-4 min-w-max">
-                    {/* Price Information */}
-                    <div className=" border rounded-xl p-4 shadow-sm min-w-[280px]">
-                        <h3 className="font-medium mb-3 text-white">Price Information</h3>
-                        <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Current:</span>
-                                <span className="font-medium text-green-600">${safeNumber(data.price.current)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Previous Close:</span>
-                                <span className="font-medium">${safeNumber(data.price.previousClose)}</span>
-                            </div>
-                            {data.price.dayRange && (
-                                <div className="flex justify-between">
-                                    <span className="text-gray-600">Day Range:</span>
-                                    <span className="font-medium">${safeNumber(data.price.dayRange.low)} - ${safeNumber(data.price.dayRange.high)}</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Technical Levels */}
-                    <div className="border rounded-xl p-4 shadow-sm min-w-[280px]">
-                        <h3 className="font-medium mb-3 text-white">Technical Levels</h3>
-                        <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">50-Day MA:</span>
-                                <span className="font-medium text-white">${safeNumber(data.technicalLevels.fiftyDayMA)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">200-Day MA:</span>
-                                <span className="font-medium text-white">${safeNumber(data.technicalLevels.twoHundredDayMA)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Support:</span>
-                                <span className="font-medium text-white">${safeNumber(data.technicalLevels.support)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Resistance:</span>
-                                <span className="font-medium text-white">${safeNumber(data.technicalLevels.resistance)}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Changes */}
-                    <div className="border rounded-xl p-4 shadow-sm min-w-[280px]">
-                        <h3 className="font-medium mb-3 text-white">Price Changes</h3>
-                        <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Daily Change:</span>
-                                <span className="font-medium">{data.changes.daily}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Momentum:</span>
-                                <span className="font-medium">{data.changes.momentum}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Trend Strength:</span>
-                                <span className="font-medium">{data.changes.trendStrength}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Trading Data */}
-                    <div className="border rounded-xl p-4 shadow-sm min-w-[280px]">
-                        <h3 className="font-medium mb-3 text-white">Trading Data</h3>
-                        <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Volume:</span>
-                                <span className="font-medium text-white">{formatNumber(data.tradingData.volume)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Avg Volume:</span>
-                                <span className="font-medium text-white">{formatNumber(data.tradingData.avgVolume)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Volume Ratio:</span>
-                                <span className="font-medium text-white">{safeNumber(data.tradingData.volumeRatio)}</span>
-                            </div>
-                            {data.tradingData.beta && (
-                                <div className="flex justify-between">
-                                    <span className="text-gray-600">Beta:</span>
-                                    <span className="font-medium text-white">{safeNumber(data.tradingData.beta)}</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Valuation Metrics */}
-                    <div className="border rounded-xl p-4 shadow-sm min-w-[280px]">
-                        <h3 className="font-medium mb-3 text-white">Valuation Metrics</h3>
-                        <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Market Cap:</span>
-                                <span className="font-medium text-white">${formatLargeNumber(data.valuationMetrics.marketCap)}</span>
-                            </div>
-                            {data.valuationMetrics.peRatio && (
-                                <div className="flex justify-between">
-                                    <span className="text-gray-600">P/E Ratio:</span>
-                                    <span className="font-medium text-white">{safeNumber(data.valuationMetrics.peRatio)}</span>
-                                </div>
-                            )}
-                            {data.valuationMetrics.forwardPE && (
-                                <div className="flex justify-between">
-                                    <span className="text-gray-600">Forward P/E:</span>
-                                    <span className="font-medium text-white">{safeNumber(data.valuationMetrics.forwardPE)}</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Dividend Information (if available) */}
-                    {data.dividend && (
-                        <div className="border rounded-xl p-4 shadow-sm min-w-[280px]">
-                            <h3 className="font-medium mb-3 text-white">Dividend Information</h3>
-                            <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-gray-600">Yield:</span>
-                                    <span className="font-medium text-white">{data.dividend.yield}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-600">Rate:</span>
-                                    <span className="font-medium text-white">${data.dividend.rate}</span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
+// Update the MetricCard component with a more modern design
+const MetricCard = ({ title, metrics }: { 
+  title: string; 
+  metrics: Array<{ label: string; value: string }> 
+}) => (
+  <div className="bg-[#0F0F10]/40 backdrop-blur-md border border-white/5 rounded-2xl p-4 min-w-[260px] flex-shrink-0 hover:bg-[#0F0F10]/60 transition-all duration-200 hover:border-white/10">
+    <h3 className="text-[13px] font-medium mb-3 text-white/50 uppercase tracking-wider">{title}</h3>
+    <div className="space-y-2">
+      {metrics.map(({ label, value }) => (
+        <div key={label} className="flex flex-col gap-0.5">
+          <span className="text-[#808080] text-[11px] uppercase tracking-wider">{label}</span>
+          <span className="font-semibold text-white text-base">{value}</span>
         </div>
-    );
-}
+      ))}
+    </div>
+  </div>
+);
 
-// Add new component for animated messages
-function AnimatedMessage({ content }: { content: string }) {
-    const { displayedText, isTyping } = useTypewriter(content);
-    
-    return (
-        <div className="whitespace-pre-wrap">
-            {displayedText}
-            {isTyping && <span className="inline-block w-1 h-4 ml-1 bg-current animate-pulse"/>}
+// Add a new SuggestedQuestion component
+const SuggestedQuestion = ({ question, onClick }: { question: string; onClick: () => void }) => (
+  <button
+    onClick={onClick}
+    className="text-sm px-4 py-2 rounded-full border border-white/5 bg-[#0F0F10]/40 
+    hover:bg-[#0F0F10]/60 transition-all duration-200 hover:border-white/10 text-white/70 
+    hover:text-white/90 backdrop-blur-md whitespace-nowrap"
+  >
+    {question}
+  </button>
+);
+
+// Add a RelatedQuestion component
+const RelatedQuestion = ({ question, onClick }: { question: string; onClick: () => void }) => (
+  <button
+    onClick={onClick}
+    className="w-full flex items-center justify-between p-4 hover:bg-[#0F0F10]/40 
+    transition-all duration-200 group border-b border-white/5"
+  >
+    <span className="text-white/80 text-lg group-hover:text-white/90">{question}</span>
+    <span className="text-[#4AACF3] text-2xl opacity-0 group-hover:opacity-100 transition-opacity">+</span>
+  </button>
+);
+
+// Memoize the EnhancedTradingViewChart component
+const MemoizedTradingViewChart = memo(EnhancedTradingViewChart);
+
+// Update the StockDataDisplay component
+const StockDataDisplay = ({ data, symbol }: { data: StockData; symbol: string }) => {
+  const [input, setInput] = useContext(InputContext);
+  const chartId = useMemo(() => `chart-${symbol}`, [symbol]); // Create stable ID
+
+  return (
+    <div className="space-y-6 mt-4">
+      {/* Chart section */}
+      <div className="rounded-2xl overflow-hidden bg-[#0F0F10]/40 backdrop-blur-md border border-white/5">
+        <MemoizedTradingViewChart 
+          symbol={symbol} 
+          containerId={chartId}
+        />
+      </div>
+
+      {/* Scrollable Metrics Container */}
+      <div className="overflow-x-auto scrollbar-hide">
+        <div className="flex gap-3 pb-1">
+          <MetricCard
+            title="Price"
+            metrics={[
+              { label: "Current", value: safeNumberFormat(data.price.current, '$') },
+              { label: "Previous", value: safeNumberFormat(data.price.previousClose, '$') },
+              { label: "Range", value: data.price.dayRange 
+                ? `$${data.price.dayRange.low.toFixed(2)} - $${data.price.dayRange.high.toFixed(2)}` 
+                : 'N/A' 
+              },
+            ]}
+          />
+          <MetricCard
+            title="Technical"
+            metrics={[
+              { label: "MA50", value: safeNumberFormat(data.technicalLevels.fiftyDayMA, '$') },
+              { label: "MA200", value: safeNumberFormat(data.technicalLevels.twoHundredDayMA, '$') },
+              { label: "Support/Res", value: `${safeNumberFormat(data.technicalLevels.support, '$')} / ${safeNumberFormat(data.technicalLevels.resistance, '$')}` },
+            ]}
+          />
+          <MetricCard
+            title="Volume"
+            metrics={[
+              { label: "Current", value: formatNumber(data.tradingData.volume) },
+              { label: "Average", value: formatNumber(data.tradingData.avgVolume) },
+              { label: "Ratio", value: safeNumberFormat(data.tradingData.volumeRatio) },
+            ]}
+          />
+          <MetricCard
+            title="Valuation"
+            metrics={[
+              { label: "Market Cap", value: formatLargeNumber(data.valuationMetrics.marketCap) },
+              { label: "P/E Ratio", value: safeNumberFormat(data.valuationMetrics.peRatio) },
+              { label: "Forward P/E", value: safeNumberFormat(data.valuationMetrics.forwardPE) },
+            ]}
+          />
         </div>
-    );
-}
-
-// Add these interfaces at the top with your other types
-interface ErrorResponse {
-    message: string;
-    status: number;
-}
-
-interface ApiResponse {
-    data: StockData;
-    error?: ErrorResponse;
-}
-
-// First, define an interface for the error response
-interface ApiErrorResponse {
-    response?: {
-        data?: {
-            message?: string;
-        };
-        status?: number;
-    };
-    message: string;
-}
-
-// Add this interface for news data
-interface NewsArticle {
-    id: string;
-    title: string;
-    url: string;
-    publishDate: string;
-    provider: string;
-    thumbnail: string | null;
-    tickers: string[];
-    isPremium: boolean;
-}
-
-interface NewsData {
-    articles: NewsArticle[];
-    metadata: {
-        totalArticles: number;
-        providers: string[];
-        dateRange: {
-            newest: string;
-            oldest: string;
-        };
-    };
-}
-
-// Add this component for news display
-const NewsPanel = ({ ticker }: { ticker: string }) => {
-    const [news, setNews] = useState<NewsArticle[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-
-    useEffect(() => {
-        const fetchNews = async () => {
-            if (!ticker) return;
-            setIsLoading(true);
-            try {
-                const response = await axios.get(
-                    `https://us-central1-shopify-webscraper.cloudfunctions.net/app/stockNews?ticker=${ticker}`
-                );
-                setNews(response.data.data.articles);
-            } catch (error) {
-                console.error('Error fetching news:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchNews();
-    }, [ticker]);
-
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        );
-    }
-
-    return (
-        <div className="space-y-4">
-            <h3 className="font-semibold text-lg dark:text-white">Latest News</h3>
-            <div className="space-y-4">
-                {news.map((article) => (
-                    <a
-                        key={article.id}
-                        href={article.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block p-4 rounded-lg border bg-[#0F0F10] dark:bg-gray-800 dark:border-gray-700 hover:bg-gray transition-colors"
-                    >
-                        <div className="flex gap-4">
-                            {article.thumbnail && (
-                                <div className="flex-shrink-0">
-                                    <img
-                                        src={article.thumbnail}
-                                        alt=""
-                                        className="w-20 h-20 object-cover rounded"
-                                    />
-                                </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                                <h4 className="font-medium text-sm line-clamp-2 dark:text-white">
-                                    {article.title}
-                                </h4>
-                                <p className="text-sm text-muted-foreground dark:text-gray-400 mt-1">
-                                    {article.provider} • {format(new Date(article.publishDate), 'MMM d, yyyy')}
-                                </p>
-                            </div>
-                        </div>
-                    </a>
-                ))}
-            </div>
-        </div>
-    );
+      </div>
+    </div>
+  );
 };
+
+// Add this context at the top of your file
+const InputContext = createContext<[string, (value: string) => void]>(['', () => {}]);
+
+// Update your existing NewsPanel component with the new styling
+const NewsPanel = ({ ticker }: { ticker: string }) => {
+  const [news, setNews] = useState<NewsArticle[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+      const fetchNews = async () => {
+          if (!ticker) return;
+          setIsLoading(true);
+          try {
+              const response = await axios.get(
+                  `https://us-central1-shopify-webscraper.cloudfunctions.net/app/stockNews?ticker=${ticker}`
+              );
+              setNews(response.data.data.articles);
+          } catch (error) {
+              console.error('Error fetching news:', error);
+          } finally {
+              setIsLoading(false);
+          }
+      };
+
+      fetchNews();
+  }, [ticker]);
+
+  if (isLoading) {
+      return (
+          <div className="flex items-center justify-center h-full">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+      );
+  }
+
+  return (
+      <div className="space-y-4">
+          <h3 className="font-semibold text-lg text-foreground">Latest News</h3>
+          <div className="space-y-4">
+              {news.map((article) => (
+                  <a
+                      key={article.id}
+                      href={article.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block p-4 rounded-lg border border-border bg-card hover:bg-accent transition-colors"
+                  >
+                      <div className="flex gap-4">
+                          {article.thumbnail && (
+                              <div className="flex-shrink-0">
+                                  <img
+                                      src={article.thumbnail}
+                                      alt=""
+                                      className="w-20 h-20 object-cover rounded"
+                                  />
+                              </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                              <h4 className="font-medium text-sm line-clamp-2 text-card-foreground">
+                                  {article.title}
+                              </h4>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                  {article.provider} • {format(new Date(article.publishDate), 'MMM d, yyyy')}
+                              </p>
+                          </div>
+                      </div>
+                  </a>
+              ))}
+          </div>
+      </div>
+  );
+};
+
+// Add the utility function
+function formatValue(value: any): string {
+  if (typeof value === 'number') {
+    return value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+  }
+  if (typeof value === 'string') {
+    return value
+  }
+  return JSON.stringify(value)
+}
 
 // Add new interfaces for the AI response
 interface AIQueryResponse {
@@ -543,7 +454,8 @@ Output: analyze TSLA
 Input: "Can you check the price of Microsoft?"
 Output: price MSFT
 Input: "How is Google doing?"
-Output: unknown UNKNOWN
+Output: analyze GOOGL
+
 If no ticker is found, or the input is unclear, always return: unknown UNKNOWN.
 
 User Query: `;
@@ -581,7 +493,329 @@ interface ChatSession {
     messages: ConversationMessage[];
 }
 
+interface NewsArticle {
+    id: string;
+    title: string;
+    url: string;
+    thumbnail?: string;
+    provider: string;
+    publishDate: string;
+}
+
+// Types
+interface ApiErrorResponse {
+    response?: {
+        data?: {
+            message?: string;
+        };
+    };
+    message?: string;
+}
+
+// Add a Recommendations component
+const Recommendations = ({ content }: { content: string }) => {
+  const recommendations = content.split('\n').filter(line => line.trim().startsWith('**'));
+  
+  return (
+    <div className="mt-4 bg-[#0F0F10]/40 backdrop-blur-md border border-white/5 rounded-xl overflow-hidden">
+      <div className="p-4 border-b border-white/5">
+        <div className="flex items-center gap-2">
+          <span className="text-lg font-medium text-white/90">Key Points</span>
+        </div>
+      </div>
+      <div className="divide-y divide-white/5">
+        {recommendations.map((rec, index) => {
+          const [title, ...description] = rec.split(':');
+          return (
+            <div key={index} className="p-4 hover:bg-white/5 transition-colors">
+              <div className="text-white/90 font-medium">
+                {title.replace(/\*\*/g, '')}
+              </div>
+              <div className="text-white/70 text-sm mt-1">
+                {description.join(':').trim()}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// Add a QuickSuggestion component
+const QuickSuggestion = ({ question, onClick }: { question: string; onClick: () => void }) => (
+  <button
+    onClick={onClick}
+    className="px-4 py-2 rounded-full bg-[#0F0F10]/40 border border-white/5 
+    hover:bg-[#0F0F10]/60 transition-all duration-200 hover:border-white/10 
+    text-white/70 hover:text-white/90 text-sm whitespace-nowrap backdrop-blur-sm
+    flex-shrink-0"
+  >
+    {question}
+  </button>
+);
+
+interface YahooFinanceResponse {
+  quoteSummary?: {
+    result?: [{
+      price?: any;
+      summaryDetail?: any;
+      defaultKeyStatistics?: any;
+      financialData?: any;
+      recommendationTrend?: any;
+    }];
+    error?: any;
+  };
+}
+
+const handleFollowUpQuestion = async (
+  question: string, 
+  ticker: string,
+  setShowNews: (show: boolean) => void,
+  addMessage: (type: ConversationMessage['type'], content: string, data?: Partial<StockData>) => void
+) => {
+  if (!ticker) {
+    addMessage('error', 'No stock is currently being analyzed. Please specify a stock symbol first.');
+    return;
+  }
+
+  const lowerQuestion = question.toLowerCase();
+  const YAHOO_API_BASE = 'https://query1.finance.yahoo.com/v10/finance';
+  
+  try {
+    if (lowerQuestion.includes('news')) {
+      setShowNews(true);
+      return;
+    }
+
+    // Get basic quote data
+    const response = await axios.get<YahooFinanceResponse>(
+      `${YAHOO_API_BASE}/quoteSummary/${ticker}`,
+      {
+        params: {
+          modules: 'price,summaryDetail,defaultKeyStatistics,financialData,recommendationTrend',
+        }
+      }
+    );
+
+    const data = response.data.quoteSummary?.result?.[0];
+    if (!data) throw new Error('No data returned from Yahoo Finance');
+
+    if (lowerQuestion.includes('technical') || lowerQuestion.includes('analysis')) {
+      const technicalData = {
+        price: data.price?.regularMarketPrice?.raw,
+        previousClose: data.price?.regularMarketPreviousClose?.raw,
+        fiftyDayAvg: data.summaryDetail?.fiftyDayAverage?.raw,
+        twoHundredDayAvg: data.summaryDetail?.twoHundredDayAverage?.raw,
+        fiftyTwoWeek: {
+          low: data.summaryDetail?.fiftyTwoWeekLow?.raw,
+          high: data.summaryDetail?.fiftyTwoWeekHigh?.raw
+        }
+      };
+      
+      addMessage('data', 'Technical Analysis:', {
+        price: {
+          current: technicalData.price,
+          previousClose: technicalData.previousClose,
+          fiftyDayMA: technicalData.fiftyDayAvg,
+          twoHundredDayMA: technicalData.twoHundredDayAvg,
+          fiftyTwoWeek: technicalData.fiftyTwoWeek
+        },
+        technicalLevels: {
+          fiftyDayMA: technicalData.fiftyDayAvg,
+          twoHundredDayMA: technicalData.twoHundredDayAvg,
+          support: technicalData.fiftyTwoWeek.low,
+          resistance: technicalData.fiftyTwoWeek.high
+        }
+      });
+      return;
+    }
+
+    if (lowerQuestion.includes('price') || lowerQuestion.includes('level')) {
+      const priceData = {
+        current: data.price?.regularMarketPrice?.raw,
+        open: data.price?.regularMarketOpen?.raw,
+        high: data.price?.regularMarketHigh?.raw,
+        low: data.price?.regularMarketLow?.raw,
+        previousClose: data.price?.regularMarketPreviousClose?.raw,
+        change: data.price?.regularMarketChange?.raw,
+        changePercent: data.price?.regularMarketChangePercent?.raw
+      };
+      
+      addMessage('data', 'Price Information:', {
+        price: {
+          current: priceData.current,
+          previousClose: priceData.previousClose,
+          dayRange: {
+            low: priceData.low,
+            high: priceData.high
+          }
+        },
+        changes: {
+          daily: `${priceData.change?.toFixed(2)} (${priceData.changePercent?.toFixed(2)}%)`,
+          momentum: 'N/A',
+          trendStrength: 'N/A'
+        }
+      });
+      return;
+    }
+
+    if (lowerQuestion.includes('volume') || lowerQuestion.includes('trading')) {
+      const volumeData = {
+        volume: data.price?.regularMarketVolume?.raw,
+        avgVolume: data.price?.averageDailyVolume3Month?.raw,
+        volumeRatio: data.price?.regularMarketVolume?.raw / data.price?.averageDailyVolume3Month?.raw
+      };
+      
+      addMessage('data', 'Volume Analysis:', {
+        tradingData: {
+          volume: volumeData.volume,
+          avgVolume: volumeData.avgVolume,
+          volumeRatio: volumeData.volumeRatio
+        }
+      });
+      return;
+    }
+
+    if (lowerQuestion.includes('financial') || lowerQuestion.includes('metric')) {
+      const financialData = {
+        marketCap: data.price?.marketCap?.raw,
+        peRatio: data.summaryDetail?.trailingPE?.raw,
+        forwardPE: data.summaryDetail?.forwardPE?.raw,
+        eps: data.defaultKeyStatistics?.trailingEps?.raw,
+        beta: data.defaultKeyStatistics?.beta?.raw
+      };
+      
+      addMessage('data', 'Financial Metrics:', {
+        valuationMetrics: {
+          marketCap: financialData.marketCap,
+          peRatio: financialData.peRatio,
+          forwardPE: financialData.forwardPE
+        },
+        tradingData: {
+          volume: data.price?.regularMarketVolume?.raw || 0,
+          avgVolume: data.price?.averageDailyVolume3Month?.raw || 0,
+          volumeRatio: (data.price?.regularMarketVolume?.raw || 0) / (data.price?.averageDailyVolume3Month?.raw || 1),
+          beta: financialData.beta
+        }
+      });
+      return;
+    }
+
+    // Default fallback - show comprehensive analysis
+    const comprehensiveData = {
+      price: data.price?.regularMarketPrice?.raw,
+      marketCap: data.price?.marketCap?.raw,
+      peRatio: data.summaryDetail?.trailingPE?.raw,
+      volume: data.price?.regularMarketVolume?.raw,
+      avgVolume: data.price?.averageDailyVolume3Month?.raw,
+      fiftyDayAvg: data.summaryDetail?.fiftyDayAverage?.raw,
+      twoHundredDayAvg: data.summaryDetail?.twoHundredDayAverage?.raw,
+      support: 0,
+      resistance: 0
+    };
+    
+    addMessage('data', 'Comprehensive Analysis:', {
+      price: {
+        current: comprehensiveData.price,
+        previousClose: data.price?.regularMarketPreviousClose?.raw || comprehensiveData.price
+      },
+      valuationMetrics: {
+        marketCap: comprehensiveData.marketCap,
+        peRatio: comprehensiveData.peRatio
+      },
+      tradingData: {
+        volume: comprehensiveData.volume,
+        avgVolume: comprehensiveData.avgVolume,
+        volumeRatio: comprehensiveData.volume / comprehensiveData.avgVolume
+      },
+      technicalLevels: {
+        fiftyDayMA: comprehensiveData.fiftyDayAvg,
+        twoHundredDayMA: comprehensiveData.twoHundredDayAvg,
+        support: comprehensiveData.support || 0,
+        resistance: comprehensiveData.resistance || 0
+      }
+    });
+    
+  } catch (error) {
+    console.error('Follow-up question error:', error);
+    addMessage('error', `Failed to fetch data for ${ticker} from Yahoo Finance. Please try again.`);
+  }
+};
+
+// Add this interface near other interfaces
+interface SimilarTicker {
+  symbol: string;
+  shortName: string;
+  regularMarketPrice: number;
+  regularMarketChangePercent: number;
+}
+
+// Update the SimilarTickers component
+const SimilarTickers = ({ tickers, onAnalyze }: { tickers: SimilarTicker[], onAnalyze: (symbol: string) => void }) => (
+  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+    {tickers.map((ticker) => (
+      <button
+        key={ticker.symbol}
+        className="px-4 py-2 rounded-full bg-[#0F0F10]/40 border border-white/5 
+        hover:bg-[#0F0F10]/60 transition-all duration-200 hover:border-white/10 
+        text-white/70 hover:text-white/90 text-sm whitespace-nowrap backdrop-blur-sm
+        flex-shrink-0"
+        onClick={() => onAnalyze(ticker.symbol)}
+      >
+        What do you think of {ticker.shortName}?
+      </button>
+    ))}
+  </div>
+);
+
+// Add this function to fetch similar tickers
+const fetchSimilarTickers = async (ticker: string): Promise<SimilarTicker[]> => {
+  try {
+    const response = await axios.get(
+      `https://yahoo-finance166.p.rapidapi.com/api/stock/get-recommendation-by-symbol`,
+      {
+        params: {
+          region: 'US',
+          symbol: ticker
+        },
+        headers: {
+          'X-RapidAPI-Key': 'ac906a2ed8msh363ece30de55c86p1fb302jsnc0d3dba809e1',
+          'X-RapidAPI-Host': 'yahoo-finance166.p.rapidapi.com'
+        }
+      }
+    );
+
+    if (!response.data?.finance?.result?.[0]?.quotes) {
+      return [];
+    }
+
+    return response.data.finance.result[0].quotes
+      .filter((quote: any) => quote.symbol !== ticker)
+      .map((quote: any) => ({
+        symbol: quote.symbol,
+        shortName: quote.shortName,
+        regularMarketPrice: quote.regularMarketPrice,
+        regularMarketChangePercent: quote.regularMarketChangePercent
+      }));
+  } catch (error) {
+    console.error('Error fetching similar tickers:', error);
+    return [];
+  }
+};
+
+// Utility function to bold text between ** and remove the markers
+function formatBoldText(content: string): string {
+  return content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+}
+
+// Example usage in a component
+const FormattedText = ({ content }: { content: string }) => (
+  <div dangerouslySetInnerHTML={{ __html: formatBoldText(content) }} />
+);
+
 export default function StockAnalyzerPage() {
+    const router = useRouter();
     const [messages, setMessages] = useState<ConversationMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -591,6 +825,8 @@ export default function StockAnalyzerPage() {
     const [error, setError] = useState<string>('');
     const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
     const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+    const [showSidebar, setShowSidebar] = useState(false);
+    const [showNews, setShowNews] = useState(false);
     const [navigationItems, setNavigationItems] = useState([
         { label: 'Home', path: '/' },
         { label: 'Stock Analysis', path: '/stock-analysis' },
@@ -598,7 +834,9 @@ export default function StockAnalyzerPage() {
         { label: 'Settings', path: '/settings' }
     ]);
     const [pathname, setPathname] = useState('/');
-    const [showSidebar, setShowSidebar] = useState(false);
+    const { theme, setTheme } = useTheme();
+    const [mounted, setMounted] = useState(false);
+    const [similarTickers, setSimilarTickers] = useState<SimilarTicker[]>([]);
 
     const tickerPatterns = {
         dollarSymbol: /\$([A-Za-z]{1,5})\b/,
@@ -674,9 +912,9 @@ export default function StockAnalyzerPage() {
     };
 
     const extractTicker = (input: string): string | null => {
-        // Match either $TICKER or just TICKER format
-        const match = input.match(/\$?([A-Za-z]{1,5})/);
-        return match ? match[1].toUpperCase() : null;
+        // Look for "about TICKER" pattern specifically
+        const match = input.match(/about\s+(\$?[A-Za-z]{1,5})/i);
+        return match ? match[1].replace('$', '').toUpperCase() : null;
     };
 
     // Update the handleError function with Axios error type
@@ -719,6 +957,13 @@ export default function StockAnalyzerPage() {
             } else {
                 throw new Error(data.message || 'Failed to analyze stock');
             }
+
+            // Add this after setting currentTicker
+            const similarTickersData = await fetchSimilarTickers(ticker);
+            if (similarTickersData.length > 0) {
+                setSimilarTickers(similarTickersData);
+            }
+            
         } catch (error) {
             console.error('Analysis Error:', error);
             addMessage('error', `Unable to analyze ${ticker}. Please try again.`);
@@ -799,7 +1044,11 @@ export default function StockAnalyzerPage() {
                 const priceData = response.data.data;
                 addMessage('data', `Current price data for ${ticker}:`, {
                     price: priceData.price,
-                    changes: priceData.changes,
+                    changes: {
+                        daily: priceData.changes?.daily || 'N/A',
+                        momentum: priceData.changes?.momentum || 'N/A',
+                        trendStrength: priceData.changes?.trendStrength || 'N/A'
+                    },
                     ticker
                 });
             } else {
@@ -845,194 +1094,257 @@ export default function StockAnalyzerPage() {
         }
     }, [messages]);
 
+    // Add this effect to handle mounting
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    // Example of using useEffect for client-side only code
+    useEffect(() => {
+        // Code that relies on the window object or needs to run only on the client
+        if (typeof window !== 'undefined') {
+            // Client-side logic here
+        }
+    }, []);
+
+    useEffect(() => {
+        // Check for pending query on component mount
+        const pendingQuery = localStorage.getItem('pendingStockQuery');
+        if (pendingQuery) {
+            // Clear the pending query immediately to prevent reuse
+            localStorage.removeItem('pendingStockQuery');
+            
+            // Add the user's question to the chat first
+            addMessage('user', pendingQuery);
+            
+            // Extract and analyze the ticker
+            const ticker = extractTicker(pendingQuery);
+            if (ticker) {
+                analyzeStock(ticker);
+            } else {
+                addMessage('error', 'Unable to identify a valid stock symbol in your query.');
+            }
+        }
+    }, []); // Run once on component mount
+
     return (
-        <PageTemplate title="Stock Analyzer" description="Get AI-powered stock analysis">
-            <div className="flex flex-col md:flex-row h-[calc(100vh-var(--nav-height)-var(--header-height))]">
-                {/* Chat History Sidebar - Collapsible on mobile */}
-                <div className={`w-full md:w-64 bg-[#0F0F10] border-r border-gray-700 flex flex-col ${
-                    showSidebar ? 'h-screen fixed z-50 md:relative' : 'hidden md:flex'
-                }`}>
-                    {/* Add mobile close button */}
-                    <button 
-                        className="md:hidden absolute top-4 right-4 p-2"
-                        onClick={() => setShowSidebar(false)}
-                    >
-                        <X className="h-6 w-6" />
-                    </button>
-                    
-                    {/* Existing sidebar content */}
-                    {/* New Chat Button */}
-                    <div className="p-4 border-b border-gray-700">
-                        <button
-                            onClick={() => {
-                                setMessages([]);
-                                setCurrentTicker('');
-                                // Add any other reset logic you need
-                            }}
-                            className="w-full px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+        <InputContext.Provider value={[input, setInput]}>
+            <div className="flex h-screen">
+                {/* Left Sidebar */}
+                <div className="w-80 border-r border-border bg-muted/50 h-screen flex flex-col">
+                    {/* Logo and Theme Toggle */}
+                    <div className="p-4 flex items-center justify-between border-b border-border">
+                        <div className="font-semibold text-lg">StockGPT</div>
+                        {mounted && ( // Only render theme toggle after mounting
+                            <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                            >
+                                {theme === 'dark' ? (
+                                    <Sun className="h-4 w-4" />
+                                ) : (
+                                    <Moon className="h-4 w-4" />
+                                )}
+                            </Button>
+                        )}
+                    </div>
+
+                    {/* New Thread Button */}
+                    <div className="p-4">
+                        <Button 
+                            variant="outline" 
+                            className="w-full justify-start gap-2"
+                            onClick={createNewChat}
                         >
                             <Plus className="h-4 w-4" />
-                            New Chat
-                        </button>
+                            New Thread
+                        </Button>
                     </div>
 
                     {/* Navigation Links */}
-                    <nav className="p-4 border-b border-gray-700">
-                        <div className="space-y-1">
-                            {navigationItems.map((item) => (
-                                <Link
-                                    key={item.path}
-                                    href={item.path}
-                                    className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                                        pathname === item.path
-                                            ? 'bg-gray-800 text-white'
-                                            : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
-                                    }`}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                        {/* Home/Search Button */}
+                        <Button 
+                            variant="ghost" 
+                            className="w-full justify-start gap-2"
+                        >
+                            <Search className="h-4 w-4" />
+                            Home
+                        </Button>
+                        
+                        {/* Add new navigation items */}
+                        <Button 
+                            variant="ghost" 
+                            className="w-full justify-start gap-2"
+                        >
+                            <Compass className="h-4 w-4" />
+                            Discover
+                        </Button>
+
+                        <Button 
+                            variant="ghost" 
+                            className="w-full justify-start gap-2"
+                        >
+                            <Library className="h-4 w-4" />
+                            Library
+                        </Button>
+
+                        <Button 
+                            variant="ghost" 
+                            className="w-full justify-start gap-2"
+                        >
+                            <BookmarkIcon className="h-4 w-4" />
+                            Watchlist
+                        </Button>
+                        
+                        {/* Existing News Button */}
+                        {currentTicker && (
+                            <Button 
+                                variant="ghost" 
+                                className="w-full justify-start gap-2"
+                                onClick={() => setShowNews(!showNews)}
+                            >
+                                <Newspaper className="h-4 w-4" />
+                                News
+                            </Button>
+                        )}
+
+                        {/* Chat History */}
+                        <div className="pt-4 space-y-2">
+                            {chatHistory.map((chat) => (
+                                <Button
+                                    key={chat.id}
+                                    variant="ghost"
+                                    className="w-full justify-start text-sm truncate"
+                                    onClick={() => switchChat(chat.id)}
                                 >
-                                    <span>{item.label}</span>
-                                </Link>
+                                    {chat.title}
+                                </Button>
                             ))}
                         </div>
-                    </nav>
-
-                    {/* Chat History */}
-                    <div className="flex-1 overflow-y-auto p-4">
-                        <div className="space-y-2">
-                            {messages.length > 0 ? (
-                                <div className="p-2 rounded-lg bg-gray-800/50 text-gray-400">
-                                    <p className="font-medium truncate">Current Chat</p>
-                                    <p className="text-sm text-gray-500">
-                                        {new Date().toLocaleDateString()}
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="text-center text-gray-400 py-4">
-                                    No chat history
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Mobile menu button */}
-                <button 
-                    className="md:hidden fixed top-4 left-4 z-40 p-2 bg-[#0F0F10] rounded-md"
-                    onClick={() => setShowSidebar(true)}
-                >
-                    <Menu className="h-6 w-6" />
-                </button>
-
-                {/* Main Content Area */}
-                <div className="flex flex-1 flex-col md:flex-row">
-                    {/* Chat Section */}
-                    <div className="flex-1 flex flex-col bg-[#0F0F10] relative">
-                        {/* Messages Container */}
-                        <div 
-                            id="chat-container"
-                            className="flex-1 overflow-y-auto mb-[76px] md:mb-[96px]"
-                        >
-                            <div className="max-w-3xl mx-auto p-4 space-y-6">
-                                {messages.map((message, index) => (
-                                    <div
-                                        key={index}
-                                        className={`flex ${
-                                            message.type === 'user' ? 'justify-end' : 'justify-start'
-                                        }`}
-                                    >
-                                        <div
-                                            className={`max-w-[90%] rounded-2xl px-4 py-3 ${
-                                                message.type === 'user'
-                                                    ? 'bg-primary text-primary-foreground'
-                                                    : message.type === 'error'
-                                                    ? 'bg-destructive/10 text-destructive dark:bg-destructive/20'
-                                                    : message.type === 'data'
-                                                    ? 'bg-[#0F0F10]'
-                                                    : 'bg-[#0F0F10]'
-                                            }`}
-                                        >
-                                            <AnimatedMessage content={message.content} />
-                                            {message.type === 'data' && message.data && (
-                                                <div className="mt-6">
-                                                    <StockDataDisplay 
-                                                        data={message.data as StockData} 
-                                                        symbol={message.data.ticker || currentTicker} 
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Input Section - adjusted for mobile */}
-                        <div className="fixed bottom-0 left-0 md:left-64 right-0 md:right-96 border-t bg-[#0F0F10] py-4">
-                            <div className="max-w-3xl mx-auto px-4">
-                                <form onSubmit={handleSubmit} className="flex gap-2">
-                                    <Input
-                                        type="text"
-                                        value={input}
-                                        onChange={(e) => setInput(e.target.value)}
-                                        placeholder="Ask about a stock (e.g., 'Analyze AAPL' or '$TSLA')"
-                                        disabled={isLoading}
-                                        className="rounded-full border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                                    />
-                                    <Button 
-                                        type="submit" 
-                                        disabled={isLoading || !input.trim()}
-                                        className="rounded-full"
-                                    >
-                                        {isLoading ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Send className="h-4 w-4" />
-                                        )}
-                                    </Button>
-                                </form>
-                            </div>
-                        </div>
                     </div>
 
-                    {/* News Panel - Hidden on mobile, visible on md screens and up */}
-                    {currentTicker && (
-                        <div className="hidden md:block md:w-96 border-t md:border-l border-gray-700 bg-[#0F0F10] md:sticky md:top-0 md:h-screen">
-                            <div className="p-4 border-b border-gray-700 bg-[#0F0F10]">
-                                <h2 className="text-lg font-semibold text-white">News</h2>
-                                <p className="text-sm text-gray-400">{currentTicker} Latest Updates</p>
-                            </div>
-                            <div className="overflow-y-auto h-[calc(100vh-12rem)]">
-                                <div className="p-4">
-                                    <NewsPanel ticker={currentTicker} />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Fullscreen Chart Modal */}
-            {showCandlestick && currentTicker && (
-                <div className="fixed inset-0 bg-black/90 z-50">
-                    <div className="absolute top-4 right-4 z-50">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setShowCandlestick(false)}
-                            className="bg-white/10 hover:bg-white/20"
-                        >
-                            <X className="h-4 w-4 text-white" />
+                    {/* User Section */}
+                    <div className="p-4 border-t border-border">
+                        <Button variant="ghost" className="w-full justify-start gap-2">
+                            <User className="h-4 w-4" />
+                            Account
                         </Button>
                     </div>
-                    <div className="h-full p-4">
-                        <EnhancedTradingViewChart 
-                            symbol={currentTicker} 
-                            containerId={`fullscreen-chart`} 
-                        />
+                </div>
+
+                {/* Main Chat Area */}
+                <div className="flex-1 flex flex-col">
+                    {/* Messages Area */}
+                    <div className="flex-1 overflow-y-auto p-4" id="chat-container">
+                        <div className="max-w-3xl mx-auto space-y-6">
+                            {messages.map((message, index) => (
+                                <div
+                                    key={index}
+                                    className={cn(
+                                        "flex",
+                                        message.type === 'user' ? "justify-end" : "justify-start"
+                                    )}
+                                >
+                                    <div
+                                        className={cn(
+                                            "max-w-[90%] rounded-lg px-4 py-3",
+                                            message.type === 'user'
+                                                ? "bg-primary text-primary-foreground"
+                                                : "bg-muted text-foreground"
+                                        )}
+                                    >
+                                        <AnimatedMessage content={message.content} />
+                                        {message.type === 'data' && message.data && (
+                                            <div className="mt-6 space-y-4">
+                                                <StockDataDisplay 
+                                                    data={message.data as StockData} 
+                                                    symbol={message.data.ticker || currentTicker} 
+                                                />
+                                                {message.content.includes('**') && (
+                                                    <Recommendations content={message.content} />
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Input Form */}
+                    <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4">
+                        <div className="max-w-3xl mx-auto space-y-4">
+                          
+                            {currentTicker && (
+                                <div className="mb-4">
+                                    
+                                    <SimilarTickers tickers={similarTickers} onAnalyze={analyzeStock} />
+                                </div>
+                            )}
+
+                            {/* Input Form */}
+                            <form onSubmit={handleSubmit} className="flex gap-2">
+                                <Input
+                                    type="text"
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    placeholder="Ask about a stock (e.g., 'Analyze AAPL' or '$TSLA')"
+                                    disabled={isLoading}
+                                    className="flex-1"
+                                />
+                                <Button type="submit" disabled={isLoading || !input.trim()} size="icon">
+                                    {isLoading ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Send className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            </form>
+                        </div>
                     </div>
                 </div>
-            )}
-        </PageTemplate>
-    )
+
+                {/* News Panel Overlay */}
+                {showNews && currentTicker && (
+                    <div className="fixed inset-y-0 right-0 w-96 bg-background border-l border-border">
+                        <div className="p-4 border-b border-border flex justify-between items-center">
+                            <h2 className="font-semibold">News for {currentTicker}</h2>
+                            <Button variant="ghost" size="icon" onClick={() => setShowNews(false)}>
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </div>
+                        <div className="p-4 overflow-y-auto h-[calc(100vh-65px)]">
+                            <NewsPanel ticker={currentTicker} />
+                        </div>
+                    </div>
+                )}
+
+                {/* Fullscreen Chart Modal */}
+                {showCandlestick && currentTicker && (
+                    <div className="fixed inset-0 bg-black/90 z-50">
+                        <div className="absolute top-4 right-4 z-50">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setShowCandlestick(false)}
+                                className="bg-white/10 hover:bg-white/20"
+                            >
+                                <X className="h-4 w-4 text-white" />
+                            </Button>
+                        </div>
+                        <div className="h-full p-4">
+                            <EnhancedTradingViewChart 
+                                symbol={currentTicker} 
+                                containerId={`fullscreen-chart`} 
+                            />
+                        </div>
+                    </div>
+                )}
+            </div>
+        </InputContext.Provider>
+    );
 }
 
 // Add custom tooltip component
@@ -1064,4 +1376,3 @@ const CustomTooltip = ({ active, payload }: any) => {
     }
     return null;
 };
-

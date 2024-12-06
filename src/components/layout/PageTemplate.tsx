@@ -5,9 +5,18 @@ import { useRouter, usePathname } from 'next/navigation';
 import { 
   BellIcon,
   Settings,
-  User
+  User,
+  Compass,
+  Library,
+  BookmarkIcon,
+  Search,
+  Plus,
+  Moon,
+  Sun
 } from 'lucide-react';
-import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { useTheme } from "next-themes";
 
 interface PageTemplateProps {
   children?: React.ReactNode;
@@ -15,44 +24,98 @@ interface PageTemplateProps {
   description?: string;
 }
 
-const navigationItems = [
-  { label: 'Overview', path: '/' },
-  { label: 'Watchlist', path: '/components/watchlist' },
-  { label: 'News', path: '/components/news' },
-  { label: 'Planner', path: '/components/planner' },
-  { label: 'Stock Analyzer', path: '/components/stock-gpt' }
+const sidebarItems = [
+  { label: 'Home', path: '/components/stock-gpt', icon: <Search className="h-4 w-4" /> },
+  { label: 'Discover', path: '/components/discover', icon: <Compass className="h-4 w-4" /> },
+  { label: 'Library', path: '/components/library', icon: <Library className="h-4 w-4" /> },
+  { label: 'Watchlist', path: '/components/watchlist', icon: <BookmarkIcon className="h-4 w-4" /> }
 ];
 
-const NavItem = ({ label, path, active }: { label: string; path: string; active: boolean }) => {
-  const router = useRouter();
-
-  return (
-    <button 
-      onClick={() => router.push(path)}
-      className="relative px-4 py-6 text-sm hover:text-black transition-colors"
-    >
-      <span className={active ? 'text-black' : 'text-gray-500'}>
-        {label}
-      </span>
-      {active && (
-        <span className="absolute bottom-0 left-0 w-full h-0.5 bg-black" />
-      )}
-    </button>
-  );
-};
-
 const PageTemplate = ({ children, title, description }: PageTemplateProps) => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <header className="border-b border-border bg-background">
-        <div className="max-w-3xl mx-auto p-4">
-          <h1 className="text-2xl font-bold text-foreground">{title}</h1>
-          <p className="text-muted-foreground">{description}</p>
+    <div className="flex h-screen bg-background font-sans antialiased">
+      {/* Left Sidebar */}
+      <div className="w-80 border-r border-border bg-muted/50 h-screen flex flex-col">
+        {/* Logo and Theme Toggle */}
+        <div className="p-4 flex items-center justify-between border-b border-border">
+          <div className="font-semibold text-lg">StockGPT</div>
+          {mounted && (
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
+              {theme === 'dark' ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </Button>
+          )}
         </div>
-      </header>
-      <main className="flex-1 relative bg-background">
-        {children}
-      </main>
+
+        {/* New Thread Button */}
+        <div className="p-4">
+          <Button 
+            variant="outline" 
+            className="w-full justify-start gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            New Thread
+          </Button>
+        </div>
+
+        {/* Navigation Links */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {sidebarItems.map((item) => (
+            <Button
+              key={item.path}
+              variant="ghost"
+              className="w-full justify-start gap-2"
+              onClick={() => router.push(item.path)}
+            >
+              {item.icon}
+              {item.label}
+            </Button>
+          ))}
+        </div>
+
+        {/* User Section */}
+        <div className="p-4 border-t border-border">
+          <Button variant="ghost" className="w-full justify-start gap-2">
+            <User className="h-4 w-4" />
+            Account
+          </Button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container flex h-14 items-center">
+            <div className="mr-4 flex">
+              <h1 className="text-xl font-bold">{title}</h1>
+            </div>
+          </div>
+        </header>
+        <main className="flex-1 overflow-y-auto">
+          <div className="container py-6">
+            {description && (
+              <p className="text-muted-foreground mb-6">{description}</p>
+            )}
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 };
