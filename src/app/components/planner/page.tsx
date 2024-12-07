@@ -266,7 +266,7 @@ const StockPlanner = () => {
 
           {stockPlans.length > 0 && (
             <div className="mt-6 space-y-4">
-              <div className="grid grid-cols-8 gap-4 px-4 py-2 bg-accent rounded-lg text-sm font-medium">
+              <div className="hidden md:grid grid-cols-8 gap-4 px-4 py-2 bg-accent rounded-lg text-sm font-medium">
                 <div>Symbol</div>
                 <div>Current</div>
                 <div>Buy Target</div>
@@ -276,38 +276,55 @@ const StockPlanner = () => {
                 <div>Profit</div>
                 <div>Actions</div>
               </div>
+              <div className="block md:hidden px-4 py-2 bg-accent rounded-lg text-sm font-medium">
+                Stock Plans
+              </div>
               {stockPlans.map((plan) => (
-                <div key={plan.symbol} className="grid grid-cols-8 gap-4 px-4 py-3 bg-card rounded-lg border items-center">
-                  <div>
-                    <div className="font-medium">{plan.symbol}</div>
-                    <div className="text-xs text-muted-foreground">{plan.companyName}</div>
+                <div key={plan.symbol} className="flex flex-col md:grid md:grid-cols-8 gap-4 px-4 py-3 bg-card rounded-lg border">
+                  <div className="flex justify-between md:block">
+                    <div>
+                      <div className="font-medium">{plan.symbol}</div>
+                      <div className="text-xs text-muted-foreground">{plan.companyName}</div>
+                    </div>
+                    <div className="md:hidden">
+                      ${plan.currentPrice.toFixed(2)}
+                    </div>
                   </div>
-                  <div>${plan.currentPrice.toFixed(2)}</div>
-                  <div>
-                    {plan.isEditing ? (
-                      <Input
-                        type="number"
-                        value={editValues.buyTarget}
-                        onChange={(e) => setEditValues(prev => ({ ...prev, buyTarget: e.target.value }))}
-                        className="w-24"
-                      />
-                    ) : (
-                      <span className="text-green-600">${plan.buyTarget.toFixed(2)}</span>
-                    )}
+                  
+                  <div className="hidden md:block">${plan.currentPrice.toFixed(2)}</div>
+                  
+                  <div className="grid grid-cols-2 md:block gap-2">
+                    <div className="flex justify-between md:block">
+                      <span className="text-sm md:hidden">Buy:</span>
+                      {plan.isEditing ? (
+                        <Input
+                          type="number"
+                          value={editValues.buyTarget}
+                          onChange={(e) => setEditValues(prev => ({ ...prev, buyTarget: e.target.value }))}
+                          className="w-24"
+                        />
+                      ) : (
+                        <span className="text-green-600">${plan.buyTarget.toFixed(2)}</span>
+                      )}
+                    </div>
+                    
+                    <div className="flex justify-between md:block">
+                      <span className="text-sm md:hidden">Sell:</span>
+                      {plan.isEditing ? (
+                        <Input
+                          type="number"
+                          value={editValues.sellTarget}
+                          onChange={(e) => setEditValues(prev => ({ ...prev, sellTarget: e.target.value }))}
+                          className="w-24"
+                        />
+                      ) : (
+                        <span className="text-blue-600">${plan.sellTarget.toFixed(2)}</span>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    {plan.isEditing ? (
-                      <Input
-                        type="number"
-                        value={editValues.sellTarget}
-                        onChange={(e) => setEditValues(prev => ({ ...prev, sellTarget: e.target.value }))}
-                        className="w-24"
-                      />
-                    ) : (
-                      <span className="text-blue-600">${plan.sellTarget.toFixed(2)}</span>
-                    )}
-                  </div>
-                  <div>
+                  
+                  <div className="flex justify-between md:block">
+                    <span className="text-sm md:hidden">Quantity:</span>
                     {plan.isEditing ? (
                       <Input
                         type="number"
@@ -319,51 +336,22 @@ const StockPlanner = () => {
                       plan.quantity
                     )}
                   </div>
-                  <div>${(plan.buyTarget * plan.quantity).toFixed(2)}</div>
-                  <div>
-                    <div className="text-green-600">
-                      ${((plan.sellTarget - plan.buyTarget) * plan.quantity).toFixed(2)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      ({((plan.sellTarget - plan.buyTarget) / plan.buyTarget * 100).toFixed(2)}%)
-                    </div>
+                  
+                  <div className="flex justify-between md:block">
+                    <span className="text-sm md:hidden">Total Cost:</span>
+                    ${(plan.buyTarget * plan.quantity).toFixed(2)}
                   </div>
-                  <div className="flex gap-2">
-                    {plan.isEditing ? (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => saveEditing(plan)}
-                        >
-                          <Check className="h-4 w-4 text-green-600" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={cancelEditing}
-                        >
-                          <X className="h-4 w-4 text-red-600" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => startEditing(plan)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleRemovePlan(plan.symbol)}
-                        >
-                          <X className="h-4 w-4 text-red-600" />
-                        </Button>
-                      </>
-                    )}
+                  
+                  <div className="flex justify-between md:block">
+                    <span className="text-sm md:hidden">Profit:</span>
+                    <div>
+                      <div className="text-green-600">
+                        ${((plan.sellTarget - plan.buyTarget) * plan.quantity).toFixed(2)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        ({((plan.sellTarget - plan.buyTarget) / plan.buyTarget * 100).toFixed(2)}%)
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}

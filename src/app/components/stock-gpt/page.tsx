@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, createContext, useContext, memo } from 'react'
-import { Send, X, Moon, Sun, Plus, ChevronLeft, ChevronRight, Loader2, Search, Newspaper, User, Compass, Library, BookmarkIcon } from 'lucide-react'
+import { Send, X, Moon, Sun, Plus, ChevronLeft, ChevronRight, Loader2, Search, Newspaper, User, Compass, Library, BookmarkIcon, LineChart, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTypewriter } from '@/hooks/useTypewriter'
@@ -220,13 +220,19 @@ const MetricCard = ({ title, metrics }: {
   title: string; 
   metrics: Array<{ label: string; value: string }> 
 }) => (
-  <div className="bg-[#0F0F10]/40 backdrop-blur-md border border-white/5 rounded-2xl p-4 min-w-[260px] flex-shrink-0 hover:bg-[#0F0F10]/60 transition-all duration-200 hover:border-white/10">
-    <h3 className="text-[13px] font-medium mb-3 text-white/50 uppercase tracking-wider">{title}</h3>
-    <div className="space-y-2">
+  <div className="bg-[#0F0F10]/40 backdrop-blur-md border border-white/5 rounded-xl p-3 md:p-4 min-w-[200px] md:min-w-[260px] flex-shrink-0">
+    <h3 className="text-[12px] md:text-[13px] font-medium mb-2 md:mb-3 text-white/50 uppercase tracking-wider">
+      {title}
+    </h3>
+    <div className="space-y-1.5 md:space-y-2">
       {metrics.map(({ label, value }) => (
         <div key={label} className="flex flex-col gap-0.5">
-          <span className="text-[#808080] text-[11px] uppercase tracking-wider">{label}</span>
-          <span className="font-semibold text-white text-base">{value}</span>
+          <span className="text-[#808080] text-[10px] md:text-[11px] uppercase tracking-wider">
+            {label}
+          </span>
+          <span className="font-semibold text-white text-sm md:text-base">
+            {value}
+          </span>
         </div>
       ))}
     </div>
@@ -837,6 +843,7 @@ export default function StockAnalyzerPage() {
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
     const [similarTickers, setSimilarTickers] = useState<SimilarTicker[]>([]);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const tickerPatterns = {
         dollarSymbol: /\$([A-Za-z]{1,5})\b/,
@@ -1129,9 +1136,20 @@ export default function StockAnalyzerPage() {
 
     return (
         <InputContext.Provider value={[input, setInput]}>
-            <div className="flex h-screen">
-                {/* Left Sidebar */}
-                <div className="w-80 border-r border-border bg-muted/50 h-screen flex flex-col">
+            <div className="flex h-screen relative">
+                {/* Mobile Sidebar Toggle */}
+                <button 
+                    className="md:hidden fixed top-4 left-4 z-50 p-2 bg-background rounded-lg border border-border"
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                >
+                    {isSidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+                </button>
+
+                {/* Left Sidebar - Mobile Friendly */}
+                <div className={cn(
+                    "fixed inset-y-0 left-0 z-40 w-80 border-r border-border bg-muted/50 transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0",
+                    isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+                )}>
                     {/* Logo and Theme Toggle */}
                     <div className="p-4 flex items-center justify-between border-b border-border">
                         <div className="font-semibold text-lg">StockGPT</div>
@@ -1204,6 +1222,16 @@ export default function StockAnalyzerPage() {
                             Watchlist
                         </Button>
                         
+                        {/* Trading Analysis */}
+                        <Button 
+                            variant="ghost" 
+                            className="w-full justify-start gap-2"
+                            onClick={() => router.push('/components/trading-analysis')}
+                        >
+                            <LineChart className="h-4 w-4" />
+                            Risk Analysis
+                        </Button>
+
                         {/* Existing News Button */}
                         {currentTicker && (
                             <Button 
@@ -1240,11 +1268,11 @@ export default function StockAnalyzerPage() {
                     </div>
                 </div>
 
-                {/* Main Chat Area */}
-                <div className="flex-1 flex flex-col">
+                {/* Main Chat Area - Mobile Friendly */}
+                <div className="flex-1 flex flex-col w-full md:w-auto">
                     {/* Messages Area */}
-                    <div className="flex-1 overflow-y-auto p-4" id="chat-container">
-                        <div className="max-w-3xl mx-auto space-y-6">
+                    <div className="flex-1 overflow-y-auto p-2 md:p-4 pt-16 md:pt-4" id="chat-container">
+                        <div className="max-w-3xl mx-auto space-y-4 md:space-y-6">
                             {messages.map((message, index) => (
                                 <div
                                     key={index}
@@ -1255,7 +1283,7 @@ export default function StockAnalyzerPage() {
                                 >
                                     <div
                                         className={cn(
-                                            "max-w-[90%] rounded-lg px-4 py-3",
+                                            "max-w-[95%] md:max-w-[90%] rounded-lg px-3 py-2 md:px-4 md:py-3",
                                             message.type === 'user'
                                                 ? "bg-primary text-primary-foreground"
                                                 : "bg-muted text-foreground"
@@ -1263,7 +1291,7 @@ export default function StockAnalyzerPage() {
                                     >
                                         <AnimatedMessage content={message.content} />
                                         {message.type === 'data' && message.data && (
-                                            <div className="mt-6 space-y-4">
+                                            <div className="mt-4 md:mt-6 space-y-4">
                                                 <StockDataDisplay 
                                                     data={message.data as StockData} 
                                                     symbol={message.data.ticker || currentTicker} 
@@ -1279,28 +1307,33 @@ export default function StockAnalyzerPage() {
                         </div>
                     </div>
 
-                    {/* Input Form */}
-                    <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4">
-                        <div className="max-w-3xl mx-auto space-y-4">
-                          
+                    {/* Input Form - Mobile Friendly */}
+                    <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-2 md:p-4">
+                        <div className="max-w-3xl mx-auto space-y-2 md:space-y-4">
                             {currentTicker && (
-                                <div className="mb-4">
-                                    
-                                    <SimilarTickers tickers={similarTickers} onAnalyze={analyzeStock} />
+                                <div className="mb-2 md:mb-4 overflow-x-auto">
+                                    <SimilarTickers 
+                                        tickers={similarTickers} 
+                                        onAnalyze={analyzeStock} 
+                                    />
                                 </div>
                             )}
 
-                            {/* Input Form */}
                             <form onSubmit={handleSubmit} className="flex gap-2">
                                 <Input
                                     type="text"
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
-                                    placeholder="Ask about a stock (e.g., 'Analyze AAPL' or '$TSLA')"
+                                    placeholder="Ask about a stock..."
                                     disabled={isLoading}
-                                    className="flex-1"
+                                    className="flex-1 text-sm md:text-base"
                                 />
-                                <Button type="submit" disabled={isLoading || !input.trim()} size="icon">
+                                <Button 
+                                    type="submit" 
+                                    disabled={isLoading || !input.trim()} 
+                                    size="icon"
+                                    className="shrink-0"
+                                >
                                     {isLoading ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                     ) : (
@@ -1312,9 +1345,9 @@ export default function StockAnalyzerPage() {
                     </div>
                 </div>
 
-                {/* News Panel Overlay */}
+                {/* News Panel Overlay - Mobile Friendly */}
                 {showNews && currentTicker && (
-                    <div className="fixed inset-y-0 right-0 w-96 bg-background border-l border-border">
+                    <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-background border-l border-border z-50">
                         <div className="p-4 border-b border-border flex justify-between items-center">
                             <h2 className="font-semibold">News for {currentTicker}</h2>
                             <Button variant="ghost" size="icon" onClick={() => setShowNews(false)}>

@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
+import { Menu, X } from 'lucide-react';
 
 interface StockResult {
   symbol: string;
@@ -273,38 +274,52 @@ const StockCard = ({ stock }: { stock: StockResult }) => {
 
   return (
     <Card className="hover:shadow-lg transition-shadow duration-200">
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start">
-          <div>
-            <h3 className="font-bold text-lg">{stock.symbol}</h3>
-            <p className="text-sm text-gray-600">{stock.shortName}</p>
-            <p className="text-xs text-gray-500">{stock.fullExchangeName}</p>
+      <CardContent className="p-3 md:p-4">
+        <div className="flex justify-between items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-bold text-base md:text-lg truncate">{stock.symbol}</h3>
+            <p className="text-xs md:text-sm text-gray-600 truncate">{stock.shortName}</p>
+            <p className="text-[10px] md:text-xs text-gray-500">{stock.fullExchangeName}</p>
           </div>
-          <div className="text-right">
-            <p className="font-bold">${stock.regularMarketPrice?.toFixed(2) ?? 'N/A'}</p>
-            <p className={`text-sm ${stock.regularMarketChangePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <div className="text-right shrink-0">
+            <p className="font-bold text-sm md:text-base">${stock.regularMarketPrice?.toFixed(2) ?? 'N/A'}</p>
+            <p className={`text-xs md:text-sm ${stock.regularMarketChangePercent >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {stock.regularMarketChangePercent?.toFixed(2) ?? 'N/A'}%
             </p>
           </div>
         </div>
         
-        {/* Stock metrics */}
-        <div className="mt-2 text-sm text-gray-600 grid gap-1">
-          <p>Volume: {stock.regularMarketVolume?.toLocaleString() ?? 'N/A'}</p>
+        {/* Stock metrics - Mobile grid */}
+        <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs md:text-sm text-gray-600">
+          <div>
+            <span className="text-gray-400">Vol:</span>
+            <span className="ml-1">{(stock.regularMarketVolume / 1e6).toFixed(1)}M</span>
+          </div>
           {stock.averageDailyVolume3Month && (
-            <p>3M Avg Volume: {stock.averageDailyVolume3Month.toLocaleString()}</p>
+            <div>
+              <span className="text-gray-400">Avg Vol:</span>
+              <span className="ml-1">{(stock.averageDailyVolume3Month / 1e6).toFixed(1)}M</span>
+            </div>
           )}
-          <p>Market Cap: ${(stock.marketCap / 1e9).toFixed(2)}B</p>
-          {stock.forwardPE && <p>Forward P/E: {stock.forwardPE.toFixed(2)}</p>}
+          <div>
+            <span className="text-gray-400">Mkt Cap:</span>
+            <span className="ml-1">${(stock.marketCap / 1e9).toFixed(1)}B</span>
+          </div>
+          {stock.forwardPE && (
+            <div>
+              <span className="text-gray-400">P/E:</span>
+              <span className="ml-1">{stock.forwardPE.toFixed(1)}</span>
+            </div>
+          )}
         </div>
 
-        {/* Action buttons */}
-        <div className="mt-4 flex gap-2">
+        {/* Action buttons - Stack on mobile */}
+        <div className="mt-3 md:mt-4 flex flex-col md:flex-row gap-2">
           <Button 
             variant="outline" 
             size="sm" 
             onClick={handleAddToWatchlist}
-            className="flex-1"
+            className="w-full md:flex-1 text-xs md:text-sm"
           >
             Add to Watchlist
           </Button>
@@ -312,7 +327,7 @@ const StockCard = ({ stock }: { stock: StockResult }) => {
             variant="default" 
             size="sm" 
             onClick={handleAskAI}
-            className="flex-1"
+            className="w-full md:flex-1 text-xs md:text-sm"
           >
             Ask AI
           </Button>
@@ -685,73 +700,131 @@ export default function DiscoverPage() {
 
   return (
     <PageTemplate title="" description="">
-      <div className="container mx-auto p-4">
+      <div className="container mx-auto px-2 md:px-4 py-2 md:py-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Stock Screener</CardTitle>
+          <CardHeader className="px-3 py-2 md:p-6">
+            <CardTitle className="text-lg md:text-xl">Stock Screener</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-4">
-              <Button 
-                onClick={search50MA} 
-                variant={activeFilter === '50MA' ? 'default' : 'outline'} 
-                className="min-w-[120px]"
-              >
-                50MA Support
-              </Button>
-              <Button 
-                onClick={searchUndervalued} 
-                variant={activeFilter === 'undervalued' ? 'default' : 'outline'} 
-                className="min-w-[120px]"
-              >
-                Undervalued Stocks
-              </Button>
-              <Button 
-                onClick={searchHighRS} 
-                variant={activeFilter === 'highRS' ? 'default' : 'outline'} 
-                className="min-w-[120px]"
-              >
-                High RS Rating
-              </Button>
-              <Button 
-                onClick={searchMostActive} 
-                variant={activeFilter === 'mostActive' ? 'default' : 'outline'} 
-                className="min-w-[120px]"
-              >
-                Most Active
-              </Button>
-              <Button
-                variant={selectedScreen === 'undervaluedLargeCaps' ? 'default' : 'ghost'}
-                onClick={() => handleScreenSelect('undervaluedLargeCaps')}
-              >
-                Undervalued Large Caps
-              </Button>
-              <Button
-                variant={selectedScreen === 'aggressiveSmallCaps' ? 'default' : 'ghost'}
-                onClick={() => handleScreenSelect('aggressiveSmallCaps')}
-              >
-                Aggressive Small Caps
-              </Button>
+            {/* Mobile Filter Tabs */}
+            <div className="md:hidden">
+              <ScrollArea className="w-full">
+                <div className="flex flex-wrap gap-2 pb-4">
+                  <Button 
+                    onClick={search50MA} 
+                    variant={activeFilter === '50MA' ? 'default' : 'outline'} 
+                    className="text-xs px-2.5 h-8"
+                  >
+                    50MA Support
+                  </Button>
+                  <Button 
+                    onClick={searchUndervalued} 
+                    variant={activeFilter === 'undervalued' ? 'default' : 'outline'} 
+                    className="text-xs px-2.5 h-8"
+                  >
+                    Undervalued
+                  </Button>
+                  <Button 
+                    onClick={searchHighRS} 
+                    variant={activeFilter === 'highRS' ? 'default' : 'outline'} 
+                    className="text-xs px-2.5 h-8"
+                  >
+                    High RS
+                  </Button>
+                  <Button 
+                    onClick={searchMostActive} 
+                    variant={activeFilter === 'mostActive' ? 'default' : 'outline'} 
+                    className="text-xs px-2.5 h-8"
+                  >
+                    Most Active
+                  </Button>
+                  <Button
+                    variant={selectedScreen === 'undervaluedLargeCaps' ? 'default' : 'outline'}
+                    onClick={() => handleScreenSelect('undervaluedLargeCaps')}
+                    className="text-xs px-2.5 h-8"
+                  >
+                    Large Caps
+                  </Button>
+                  <Button
+                    variant={selectedScreen === 'aggressiveSmallCaps' ? 'default' : 'outline'}
+                    onClick={() => handleScreenSelect('aggressiveSmallCaps')}
+                    className="text-xs px-2.5 h-8"
+                  >
+                    Small Caps
+                  </Button>
+                </div>
+              </ScrollArea>
             </div>
 
-            <ScrollArea className="h-[600px] w-full rounded-md border mt-4">
+            {/* Desktop Horizontal Scroll */}
+            <div className="hidden md:block">
+              <ScrollArea className="w-full pb-2 md:pb-4">
+                <div className="flex gap-2 md:gap-4 px-2 md:px-0">
+                  <Button 
+                    onClick={search50MA} 
+                    variant={activeFilter === '50MA' ? 'default' : 'outline'} 
+                    className="whitespace-nowrap text-xs md:text-sm px-3 md:px-4"
+                  >
+                    50MA Support
+                  </Button>
+                  <Button 
+                    onClick={searchUndervalued} 
+                    variant={activeFilter === 'undervalued' ? 'default' : 'outline'} 
+                    className="whitespace-nowrap text-xs md:text-sm px-3 md:px-4"
+                  >
+                    Undervalued
+                  </Button>
+                  <Button 
+                    onClick={searchHighRS} 
+                    variant={activeFilter === 'highRS' ? 'default' : 'outline'} 
+                    className="whitespace-nowrap text-xs md:text-sm px-3 md:px-4"
+                  >
+                    High RS
+                  </Button>
+                  <Button 
+                    onClick={searchMostActive} 
+                    variant={activeFilter === 'mostActive' ? 'default' : 'outline'} 
+                    className="whitespace-nowrap text-xs md:text-sm px-3 md:px-4"
+                  >
+                    Most Active
+                  </Button>
+                  <Button
+                    variant={selectedScreen === 'undervaluedLargeCaps' ? 'default' : 'ghost'}
+                    onClick={() => handleScreenSelect('undervaluedLargeCaps')}
+                    className="whitespace-nowrap text-xs md:text-sm px-3 md:px-4"
+                  >
+                    Large Caps
+                  </Button>
+                  <Button
+                    variant={selectedScreen === 'aggressiveSmallCaps' ? 'default' : 'ghost'}
+                    onClick={() => handleScreenSelect('aggressiveSmallCaps')}
+                    className="whitespace-nowrap text-xs md:text-sm px-3 md:px-4"
+                  >
+                    Small Caps
+                  </Button>
+                </div>
+              </ScrollArea>
+            </div>
+
+            {/* Results area - Adjusted height for mobile */}
+            <ScrollArea className="h-[calc(100vh-220px)] md:h-[600px] w-full rounded-md border mt-2">
               {isLoading ? (
                 <div className="flex justify-center items-center h-40">
-                  <p>Loading results...</p>
+                  <p className="text-sm md:text-base">Loading results...</p>
                 </div>
               ) : error ? (
                 <div className="flex justify-center items-center h-40 text-red-500">
-                  <p>{error}</p>
+                  <p className="text-sm md:text-base">{error}</p>
                 </div>
               ) : results.length > 0 ? (
-                <div className="grid gap-4 p-4">
+                <div className="grid gap-2 md:gap-4 p-2 md:p-4">
                   {results.map((stock) => (
                     <StockCard key={`${stock.symbol}-${activeFilter}`} stock={stock} />
                   ))}
                 </div>
               ) : (
                 <div className="flex justify-center items-center h-40">
-                  <p>Select a filter to view stocks</p>
+                  <p className="text-sm md:text-base">Select a filter to view stocks</p>
                 </div>
               )}
             </ScrollArea>
