@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Upload, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import OpenAI from 'openai';
 
 interface Trade {
   date: string;
@@ -24,60 +25,37 @@ interface RiskMetrics {
   riskLevel: 'Conservative' | 'Moderate' | 'Aggressive';
 }
 
+
+
+const SYSTEM_PROMPT = "You are a professional trading analyst. ";
+
+const openai = new OpenAI({
+  apiKey: "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",
+  dangerouslyAllowBrowser: true // Note: In production, you should proxy through your backend
+});
+
+const queryAI = async (prompt: string): Promise<string> => {
+  try {
+    const completion = await openai.chat.completions.create({
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: prompt }
+      ],
+      model: "gpt-4o",
+      temperature: 0.7,
+    });
+
+    return completion.choices[0].message.content || '';
+  } catch (error) {
+    console.error('OpenAI API Error:', error);
+    throw error;
+  }
+};
+
 const TradingAnalyzer = () => {
   const [metrics, setMetrics] = useState<RiskMetrics | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const analyzeTrades = (trades: Trade[]): RiskMetrics => {
-    const winningTrades = trades.filter(trade => (trade.profitLoss || 0) > 0);
-    const losingTrades = trades.filter(trade => (trade.profitLoss || 0) < 0);
-    
-    const winRate = (winningTrades.length / trades.length) * 100;
-    const averageWin = winningTrades.reduce((acc, trade) => acc + (trade.profitLoss || 0), 0) / winningTrades.length;
-    const averageLoss = Math.abs(losingTrades.reduce((acc, trade) => acc + (trade.profitLoss || 0), 0) / losingTrades.length);
-    const largestLoss = Math.abs(Math.min(...trades.map(t => t.profitLoss || 0)));
-    
-    // Calculate risk tolerance score (0-100)
-    const riskToleranceScore = calculateRiskScore(winRate, averageWin, averageLoss, largestLoss);
-    
-    return {
-      winRate,
-      averageWin,
-      averageLoss,
-      largestLoss,
-      riskToleranceScore,
-      riskLevel: getRiskLevel(riskToleranceScore)
-    };
-  };
-
-  const calculateRiskScore = (
-    winRate: number,
-    averageWin: number,
-    averageLoss: number,
-    largestLoss: number
-  ): number => {
-    // Risk score calculation factors
-    const winRateWeight = 0.3;
-    const riskRewardWeight = 0.3;
-    const maxLossWeight = 0.4;
-
-    const riskRewardRatio = averageWin / averageLoss;
-    const normalizedMaxLoss = Math.min(largestLoss / 10000, 1); // Normalize largest loss
-
-    const score = (
-      (winRate * winRateWeight) +
-      (riskRewardRatio * 20 * riskRewardWeight) +
-      ((1 - normalizedMaxLoss) * 100 * maxLossWeight)
-    );
-
-    return Math.min(Math.max(score, 0), 100);
-  };
-
-  const getRiskLevel = (score: number): RiskMetrics['riskLevel'] => {
-    if (score < 40) return 'Conservative';
-    if (score < 70) return 'Moderate';
-    return 'Aggressive';
-  };
+  const [aiResponse, setAiResponse] = useState<string>('');
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -85,33 +63,63 @@ const TradingAnalyzer = () => {
 
     try {
       const text = await file.text();
-      const trades = parseCSV(text);
-      const riskMetrics = analyzeTrades(trades);
-      setMetrics(riskMetrics);
-      setError(null);
+      console.log('Processing file of size:', text.length);
+      
+      // Ensure we have valid data before processing
+      if (!text.trim()) {
+        throw new Error('File appears to be empty');
+      }
+
+      const trades = text.split('\n').slice(0, 100).join('\n');
+      console.log('Processed trades length:', trades.length);
+      
+      const prompt = `Analyze this trading data and provide a risk assessment. Return a JSON object with fields: riskScore (number 1-10), riskLevel (string: "Conservative", "Moderate", or "Aggressive"), and explanation (string). Data:\n${trades}`;
+
+      const response = await queryAI(prompt);
+      console.log('API Response:', response);
+
+      let analysis;
+      try {
+        // Try to parse the entire response first
+        analysis = JSON.parse(response);
+      } catch {
+        // If that fails, try to extract JSON using a more flexible regex
+        const jsonMatch = response.match(/\{(?:[^{}]|{[^{}]*})*\}/);
+        if (!jsonMatch) {
+          throw new Error('Invalid response format: Expected JSON data');
+        }
+        
+        try {
+          analysis = JSON.parse(jsonMatch[0]);
+        } catch {
+          throw new Error('Failed to parse response data');
+        }
+      }
+
+      if (!analysis?.riskScore || !analysis?.riskLevel) {
+        throw new Error('Missing required fields in response');
+      }
+
+      setMetrics({
+        winRate: 0,
+        averageWin: 0,
+        averageLoss: 0,
+        largestLoss: 0,
+        riskToleranceScore: analysis.riskScore,
+        riskLevel: analysis.riskLevel as RiskMetrics['riskLevel']
+      });
+      setAiResponse(analysis.explanation);
     } catch (err) {
-      setError('Error processing file. Please ensure it\'s a valid CSV format.');
+      console.error('Full error:', err);
+      const error = err as Error;  // Type assertion
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      setError(error.message || 'Error processing file.');
       setMetrics(null);
     }
-  };
-
-  const parseCSV = (csv: string): Trade[] => {
-    const lines = csv.split('\n');
-    const headers = lines[0].toLowerCase().split(',');
-    
-    return lines.slice(1)
-      .filter(line => line.trim())
-      .map(line => {
-        const values = line.split(',');
-        return {
-          date: values[headers.indexOf('trade date')],
-          symbol: values[headers.indexOf('name')],
-          type: values[headers.indexOf('type')].toLowerCase() as 'buy' | 'sell',
-          price: parseFloat(values[headers.indexOf('price')]),
-          quantity: parseFloat(values[headers.indexOf('qty')]),
-          profitLoss: parseFloat(values[headers.indexOf('gain/loss')])
-        };
-      });
   };
 
   return (
@@ -125,12 +133,11 @@ const TradingAnalyzer = () => {
             <Button variant="outline" className="relative">
               <input
                 type="file"
-                accept=".csv"
                 onChange={handleFileUpload}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               />
               <Upload className="mr-2 h-4 w-4" />
-              Upload Trading History
+              Upload File
             </Button>
           </div>
 
@@ -145,26 +152,18 @@ const TradingAnalyzer = () => {
           {metrics && (
             <div className="grid gap-4">
               <div className="text-center">
-                <h3 className="text-2xl font-bold mb-2">Risk Tolerance Score</h3>
+                <h3 className="text-2xl font-bold mb-2">AI Risk Analysis</h3>
                 <div className="text-4xl font-bold text-primary">
                   {metrics.riskToleranceScore.toFixed(1)}
                 </div>
                 <div className="text-lg text-muted-foreground mt-1">
                   {metrics.riskLevel} Trader
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-lg bg-muted">
-                  <div className="text-sm text-muted-foreground">Win Rate</div>
-                  <div className="text-lg font-semibold">{metrics.winRate.toFixed(1)}%</div>
-                </div>
-                <div className="p-4 rounded-lg bg-muted">
-                  <div className="text-sm text-muted-foreground">Risk/Reward</div>
-                  <div className="text-lg font-semibold">
-                    {(metrics.averageWin / metrics.averageLoss).toFixed(2)}
+                {aiResponse && (
+                  <div className="mt-4 text-sm text-muted-foreground">
+                    {aiResponse}
                   </div>
-                </div>
+                )}
               </div>
             </div>
           )}

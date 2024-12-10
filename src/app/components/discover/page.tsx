@@ -89,7 +89,7 @@ const processScreenerResponse = (data: any): StockResult[] => {
 };
 
 const searchUndervaluedLargeCaps = async () => {
-  const url = 'https://yahoo-finance166.p.rapidapi.com/api/screener/get-predefined-screener?start=0&count=100&scrIds=undervalued_large_caps';
+  const url = 'https://yahoo-finance166.p.rapidapi.com/api/screener/get-predefined-screener?start=0&sort=marketCap&count=100&scrIds=undervalued_large_caps';
   const options = {
     method: 'GET',
     headers: {

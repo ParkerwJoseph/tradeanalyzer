@@ -11,7 +11,11 @@ import axios from 'axios'
 import { format } from 'date-fns'
 import PageTemplate from '@/components/layout/PageTemplate'
 import { useTheme } from "next-themes"
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Cookies from 'js-cookie'
+import { trackUserQuestion, logUserActivity, saveConversation, trackTickerSearch} from '@/lib/userStore'
+import { ref, get } from 'firebase/database'
+import { database } from '@/lib/firebase'
 
 // Types
 interface StockData {
@@ -204,8 +208,8 @@ function transformChartData(apiResponse: any): ChartDataPoint[] {
 }
 
 // Add the new AnimatedMessage component
-const AnimatedMessage = ({ content }: { content: string }) => {
-  const { displayedText, isTyping } = useTypewriter(content)
+const AnimatedMessage = ({ content, isNew = false }: { content: string, isNew: boolean }) => {
+  const { displayedText, isTyping } = useTypewriter(content, isNew ? 30 : 0)
   
   return (
     <div className="whitespace-pre-wrap">
@@ -820,8 +824,20 @@ const FormattedText = ({ content }: { content: string }) => (
   <div dangerouslySetInnerHTML={{ __html: formatBoldText(content) }} />
 );
 
+interface SelectedConversation {
+    messages: ConversationMessage[];
+    title: string;
+    id: string;
+}
+
+interface RiskMetrics {
+  riskToleranceScore: number
+  riskLevel: 'Conservative' | 'Moderate' | 'Aggressive'
+}
+
 export default function StockAnalyzerPage() {
     const router = useRouter();
+    const searchParams = useSearchParams()
     const [messages, setMessages] = useState<ConversationMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -843,7 +859,7 @@ export default function StockAnalyzerPage() {
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
     const [similarTickers, setSimilarTickers] = useState<SimilarTicker[]>([]);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
 
     const tickerPatterns = {
         dollarSymbol: /\$([A-Za-z]{1,5})\b/,
@@ -877,37 +893,15 @@ export default function StockAnalyzerPage() {
         setMessages([]); // Clear current messages
     };
 
-    const addMessage = async (
-        type: ConversationMessage['type'],
-        content: string,
-        data?: Partial<StockData> & { ticker?: string }
-    ) => {
-        const newMessage: ConversationMessage = {
+    const addMessage = (type: ConversationMessage['type'], content: string, data?: Partial<StockData>) => {
+        console.log('Adding message:', { type, content, data }); // Debug log
+        setMessages(prev => [...prev, {
             type,
             content,
             timestamp: new Date(),
             data,
-            ticker: data?.ticker
-        };
-
-        setMessages(prev => [...prev, newMessage]);
-
-        // Update chat title with first user message
-        if (type === 'user' && messages.length === 0 && currentChatId) {
-            const newTitle = await generateChatTitle(content);
-            setChatHistory(prev => prev.map(chat => 
-                chat.id === currentChatId 
-                    ? { ...chat, title: newTitle, messages: [...chat.messages, newMessage] }
-                    : chat
-            ));
-        } else if (currentChatId) {
-            // Update messages in chat history
-            setChatHistory(prev => prev.map(chat => 
-                chat.id === currentChatId 
-                    ? { ...chat, messages: [...chat.messages, newMessage] }
-                    : chat
-            ));
-        }
+            ticker: currentTicker
+        }]);
     };
 
     const switchChat = (chatId: string) => {
@@ -934,68 +928,122 @@ export default function StockAnalyzerPage() {
         setIsLoading(false);
     };
 
-    // Simplified analyzeStock
+    // Modify the analyzeStock function to show news automatically
     const analyzeStock = async (ticker: string) => {
         try {
-            const upperTicker = ticker.toUpperCase();
-            setCurrentTicker(upperTicker);
-            
-            addMessage('system', `Analyzing ${upperTicker}...`);
+            await trackTickerSearch(ticker);
+            setCurrentTicker(ticker);
+            setIsAnalyzing(true);
+            addMessage('system', `Analyzing ${ticker}...`);
 
-            const response = await fetch(
-                `https://us-central1-shopify-webscraper.cloudfunctions.net/app/analyzeStock?ticker=${upperTicker}`
+            // Get user's risk profile from Firebase
+            const uid = Cookies.get('uid');
+            let riskTolerance = '';
+            
+            if (uid) {
+                const userRef = ref(database, `users/${uid}`);
+                const snapshot = await get(userRef);
+                if (snapshot.exists()) {
+                    const userData = snapshot.val();
+                    if (userData.riskAnalysis?.riskToleranceScore) {
+                        riskTolerance = `&riskTolerance=${userData.riskAnalysis.riskToleranceScore}`;
+                    }
+                }
+            }
+
+            const response = await axios.get(
+                `https://us-central1-shopify-webscraper.cloudfunctions.net/app/analyzeStock?ticker=${ticker}&detailed=true${riskTolerance}`
             );
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch stock data');
-            }
+            if (response.data.success) {
+                const stockData = response.data.data;
+                
+                // Create new messages
+                const dataMessage = {
+                    type: 'data' as const,
+                    content: `Here are the key metrics for ${ticker}:`,
+                    timestamp: new Date(),
+                    data: {
+                        ...stockData,
+                        ticker: ticker.toUpperCase()
+                    },
+                    ticker: ticker.toUpperCase()
+                };
 
-            const data = await response.json();
+                const analysisMessage = response.data.analysis ? {
+                    type: 'system' as const,
+                    content: response.data.analysis,
+                    timestamp: new Date(),
+                    ticker: ticker.toUpperCase()
+                } : null;
 
-            if (data.success && data.data) {
-                addMessage('data', `Here are the current metrics for ${upperTicker}:`, {
-                    ...data.data,
-                    ticker: upperTicker
-                });
-
-                if (data.analysis) {
-                    addMessage('system', data.analysis);
+                // Remove loading message and add new messages
+                const updatedMessages = messages.slice(0, -1); // Remove loading message
+                updatedMessages.push(dataMessage);
+                if (analysisMessage) {
+                    updatedMessages.push(analysisMessage);
                 }
-            } else {
-                throw new Error(data.message || 'Failed to analyze stock');
-            }
-
-            // Add this after setting currentTicker
-            const similarTickersData = await fetchSimilarTickers(ticker);
-            if (similarTickersData.length > 0) {
+                // Update messages state
+                setMessages(updatedMessages);
+                
+                // Save conversation after state update
+                const uid = Cookies.get('uid');
+                if (uid) {
+                    const title = `${ticker.toUpperCase()} Analysis`;
+                    // Use setTimeout to ensure this runs after state update
+                    setTimeout(() => {
+                        saveConversation(uid, updatedMessages, title);
+                    }, 0);
+                }
+                
+                // Fetch similar tickers
+                const similarTickersData = await fetchSimilarTickers(ticker);
                 setSimilarTickers(similarTickersData);
+                
+                // Show news panel
+                setShowNews(true);
+            } else {
+                throw new Error(response.data.message || 'Failed to analyze stock');
             }
-            
         } catch (error) {
-            console.error('Analysis Error:', error);
-            addMessage('error', `Unable to analyze ${ticker}. Please try again.`);
+            console.error('Analysis error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+            addMessage('error', `Error analyzing ${ticker}: ${errorMessage}`);
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    // Simplified handleSubmit
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
         const trimmedInput = input.trim();
         if (!trimmedInput) return;
-
+        
         // Add user's message and clear input
         addMessage('user', trimmedInput);
         setInput('');
         
         try {
             setIsLoading(true);
+            const uid = Cookies.get('uid');
+            
+            // Track user activity if logged in
+            if (uid) {
+                try {
+                    await trackUserQuestion(uid, trimmedInput);
+                    await logUserActivity(uid, 'AI_QUERY_STARTED', {
+                        question: trimmedInput,
+                        timestamp: new Date().toISOString()
+                    });
+                } catch (error) {
+                    console.error('Error tracking question:', error);
+                }
+            }
 
             // Get AI response
             const aiResponse = await queryAI(trimmedInput);
-            console.log('Processed AI Response:', aiResponse);
-
-            // Extract ticker (last word from response)
+            
+            // Extract ticker
             const parts = aiResponse.split(' ');
             const ticker = parts[parts.length - 1];
 
@@ -1003,6 +1051,12 @@ export default function StockAnalyzerPage() {
                 await analyzeStock(ticker);
             } else {
                 addMessage('system', 'I couldn\'t identify a specific stock in your question. Please try asking about a specific company or use a stock symbol.');
+            }
+
+            // Save conversation after all messages have been added
+            if (uid) {
+                const title = await generateChatTitle(trimmedInput);
+                await saveConversation(uid, messages, title);
             }
 
         } catch (error) {
@@ -1134,181 +1188,126 @@ export default function StockAnalyzerPage() {
         }
     }, []); // Run once on component mount
 
+    useEffect(() => {
+        const loadChatHistory = async () => {
+            const chatId = searchParams.get('chat')
+            if (!chatId) return;
+
+            try {
+                const uid = Cookies.get('uid');
+                if (!uid) {
+                    console.error('No UID found in cookies');
+                    addMessage('error', 'Please log in to view conversation history');
+                    return;
+                }
+
+                // First try to get the conversation directly from Firebase
+                const conversationsRef = ref(database, `users/${uid}/conversations/${chatId}`);
+                const snapshot = await get(conversationsRef);
+                
+                if (!snapshot.exists()) {
+                    throw new Error('Conversation not found');
+                }
+
+                const conversation = snapshot.val();
+                
+                if (!conversation || !conversation.messages) {
+                    throw new Error('Invalid conversation data');
+                }
+
+                // Convert messages object to array if needed
+                const messages = Array.isArray(conversation.messages) 
+                    ? conversation.messages 
+                    : Object.values(conversation.messages);
+
+                setMessages(messages);
+                setCurrentChatId(chatId);
+                
+                // Find last message with ticker
+                const lastDataMessage = [...messages]
+                    .reverse()
+                    .find(msg => msg.ticker);
+                
+                if (lastDataMessage?.ticker) {
+                    setCurrentTicker(lastDataMessage.ticker);
+                }
+
+            } catch (error) {
+                console.error('Error loading conversation:', error);
+                const errorMessage = error instanceof Error 
+                    ? error.message 
+                    : 'An unexpected error occurred';
+                addMessage('error', `Failed to load conversation history: ${errorMessage}`);
+            }
+        };
+
+        loadChatHistory();
+    }, [searchParams]); // Run when URL params change
+
     return (
-        <InputContext.Provider value={[input, setInput]}>
-            <div className="flex h-screen relative">
-                {/* Mobile Sidebar Toggle */}
-                <button 
-                    className="md:hidden fixed top-4 left-4 z-50 p-2 bg-background rounded-lg border border-border"
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                >
-                    {isSidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-                </button>
-
-                {/* Left Sidebar - Mobile Friendly */}
-                <div className={cn(
-                    "fixed inset-y-0 left-0 z-40 w-80 border-r border-border bg-muted/50 transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0",
-                    isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-                )}>
-                    {/* Logo and Theme Toggle */}
-                    <div className="p-4 flex items-center justify-between border-b border-border">
-                        <div className="font-semibold text-lg">StockGPT</div>
-                        {mounted && ( // Only render theme toggle after mounting
-                            <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                            >
-                                {theme === 'dark' ? (
-                                    <Sun className="h-4 w-4" />
+        <PageTemplate
+            title=""
+            description=""
+        >
+            <InputContext.Provider value={[input, setInput]}>
+                <div className="flex flex-col h-full fixed inset-0 pt-14 bg-background">
+                    {/* Messages Area - Only this should scroll */}
+                    <div className="flex-1 overflow-y-auto min-h-0">
+                        <div className="p-2 md:p-4">
+                            <div className="max-w-3xl mx-auto space-y-4 md:space-y-6">
+                                {messages.length === 0 ? (
+                                    // Welcome message when chat is empty
+                                    <div className="h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center">
+                                        <h1 className="text-4xl font-bold text-muted-foreground mb-4">
+                                            StockGPT
+                                        </h1>
+                                        <p className="text-xl text-muted-foreground">
+                                            Ask about any stock to get started
+                                        </p>
+                                    </div>
                                 ) : (
-                                    <Moon className="h-4 w-4" />
-                                )}
-                            </Button>
-                        )}
-                    </div>
-
-                    {/* New Thread Button */}
-                    <div className="p-4">
-                        <Button 
-                            variant="outline" 
-                            className="w-full justify-start gap-2"
-                            onClick={createNewChat}
-                        >
-                            <Plus className="h-4 w-4" />
-                            New Thread
-                        </Button>
-                    </div>
-
-                    {/* Navigation Links */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                        {/* Home/Search Button */}
-                        <Button 
-                            variant="ghost" 
-                            className="w-full justify-start gap-2"
-                            onClick={() => router.push('/components/stock-gpt')}
-                        >
-                            <Search className="h-4 w-4" />
-                            Home
-                        </Button>
-                        
-                        {/* Discover */}
-                        <Button 
-                            variant="ghost" 
-                            className="w-full justify-start gap-2"
-                            onClick={() => router.push('/components/discover')}
-                        >
-                            <Compass className="h-4 w-4" />
-                            Discover
-                        </Button>
-
-                        {/* Library */}
-                        <Button 
-                            variant="ghost" 
-                            className="w-full justify-start gap-2"
-                            onClick={() => router.push('/components/library')}
-                        >
-                            <Library className="h-4 w-4" />
-                            Library
-                        </Button>
-
-                        {/* Watchlist */}
-                        <Button 
-                            variant="ghost" 
-                            className="w-full justify-start gap-2"
-                            onClick={() => router.push('/components/watchlist')}
-                        >
-                            <BookmarkIcon className="h-4 w-4" />
-                            Watchlist
-                        </Button>
-                        
-                        {/* Trading Analysis */}
-                        <Button 
-                            variant="ghost" 
-                            className="w-full justify-start gap-2"
-                            onClick={() => router.push('/components/trading-analysis')}
-                        >
-                            <LineChart className="h-4 w-4" />
-                            Risk Analysis
-                        </Button>
-
-                        {/* Existing News Button */}
-                        {currentTicker && (
-                            <Button 
-                                variant="ghost" 
-                                className="w-full justify-start gap-2"
-                                onClick={() => setShowNews(!showNews)}
-                            >
-                                <Newspaper className="h-4 w-4" />
-                                News
-                            </Button>
-                        )}
-
-                        {/* Chat History */}
-                        <div className="pt-4 space-y-2">
-                            {chatHistory.map((chat) => (
-                                <Button
-                                    key={chat.id}
-                                    variant="ghost"
-                                    className="w-full justify-start text-sm truncate"
-                                    onClick={() => switchChat(chat.id)}
-                                >
-                                    {chat.title}
-                                </Button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* User Section */}
-                    <div className="p-4 border-t border-border">
-                        <Button variant="ghost" className="w-full justify-start gap-2">
-                            <User className="h-4 w-4" />
-                            Account
-                        </Button>
-                    </div>
-                </div>
-
-                {/* Main Chat Area - Mobile Friendly */}
-                <div className="flex-1 flex flex-col w-full md:w-auto">
-                    {/* Messages Area */}
-                    <div className="flex-1 overflow-y-auto p-2 md:p-4 pt-16 md:pt-4" id="chat-container">
-                        <div className="max-w-3xl mx-auto space-y-4 md:space-y-6">
-                            {messages.map((message, index) => (
-                                <div
-                                    key={index}
-                                    className={cn(
-                                        "flex",
-                                        message.type === 'user' ? "justify-end" : "justify-start"
-                                    )}
-                                >
-                                    <div
-                                        className={cn(
-                                            "max-w-[95%] md:max-w-[90%] rounded-lg px-3 py-2 md:px-4 md:py-3",
-                                            message.type === 'user'
-                                                ? "bg-primary text-primary-foreground"
-                                                : "bg-muted text-foreground"
-                                        )}
-                                    >
-                                        <AnimatedMessage content={message.content} />
-                                        {message.type === 'data' && message.data && (
-                                            <div className="mt-4 md:mt-6 space-y-4">
-                                                <StockDataDisplay 
-                                                    data={message.data as StockData} 
-                                                    symbol={message.data.ticker || currentTicker} 
+                                    // Regular messages when chat has content
+                                    messages.map((message, index) => (
+                                        <div
+                                            key={index}
+                                            className={cn(
+                                                "flex",
+                                                message.type === 'user' ? "justify-end" : "justify-start"
+                                            )}
+                                        >
+                                            <div
+                                                className={cn(
+                                                    "max-w-[95%] md:max-w-[90%] rounded-lg px-3 py-2 md:px-4 md:py-3",
+                                                    message.type === 'user'
+                                                        ? "bg-primary text-primary-foreground"
+                                                        : "bg-muted text-foreground"
+                                                )}
+                                            >
+                                                <AnimatedMessage 
+                                                    content={message.content} 
+                                                    isNew={index === messages.length - 1 && message.type !== 'user'} 
                                                 />
-                                                {message.content.includes('**') && (
-                                                    <Recommendations content={message.content} />
+                                                {message.type === 'data' && message.data && (
+                                                    <div className="mt-4 md:mt-6 space-y-4">
+                                                        <StockDataDisplay 
+                                                            data={message.data as StockData} 
+                                                            symbol={message.data.ticker || currentTicker} 
+                                                        />
+                                                        {message.content.includes('**') && (
+                                                            <Recommendations content={message.content} />
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Input Form - Mobile Friendly */}
-                    <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-2 md:p-4">
+                    {/* Input Area - Updated background */}
+                    <div className="bg-background p-2 md:p-4">
                         <div className="max-w-3xl mx-auto space-y-2 md:space-y-4">
                             {currentTicker && (
                                 <div className="mb-2 md:mb-4 overflow-x-auto">
@@ -1343,46 +1342,46 @@ export default function StockAnalyzerPage() {
                             </form>
                         </div>
                     </div>
+
+                    {/* News Panel Overlay */}
+                    {showNews && currentTicker && (
+                        <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-background border-l border-border z-50">
+                            <div className="p-4 border-b border-border flex justify-between items-center">
+                                <h2 className="font-semibold">News for {currentTicker}</h2>
+                                <Button variant="ghost" size="icon" onClick={() => setShowNews(false)}>
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            <div className="p-4 overflow-y-auto h-[calc(100vh-65px)]">
+                                <NewsPanel ticker={currentTicker} />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Fullscreen Chart Modal */}
+                    {showCandlestick && currentTicker && (
+                        <div className="fixed inset-0 bg-black/90 z-50">
+                            <div className="absolute top-4 right-4 z-50">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setShowCandlestick(false)}
+                                    className="bg-white/10 hover:bg-white/20"
+                                >
+                                    <X className="h-4 w-4 text-white" />
+                                </Button>
+                            </div>
+                            <div className="h-full p-4">
+                                <EnhancedTradingViewChart 
+                                    symbol={currentTicker} 
+                                    containerId={`fullscreen-chart`} 
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
-
-                {/* News Panel Overlay - Mobile Friendly */}
-                {showNews && currentTicker && (
-                    <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-background border-l border-border z-50">
-                        <div className="p-4 border-b border-border flex justify-between items-center">
-                            <h2 className="font-semibold">News for {currentTicker}</h2>
-                            <Button variant="ghost" size="icon" onClick={() => setShowNews(false)}>
-                                <X className="h-4 w-4" />
-                            </Button>
-                        </div>
-                        <div className="p-4 overflow-y-auto h-[calc(100vh-65px)]">
-                            <NewsPanel ticker={currentTicker} />
-                        </div>
-                    </div>
-                )}
-
-                {/* Fullscreen Chart Modal */}
-                {showCandlestick && currentTicker && (
-                    <div className="fixed inset-0 bg-black/90 z-50">
-                        <div className="absolute top-4 right-4 z-50">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setShowCandlestick(false)}
-                                className="bg-white/10 hover:bg-white/20"
-                            >
-                                <X className="h-4 w-4 text-white" />
-                            </Button>
-                        </div>
-                        <div className="h-full p-4">
-                            <EnhancedTradingViewChart 
-                                symbol={currentTicker} 
-                                containerId={`fullscreen-chart`} 
-                            />
-                        </div>
-                    </div>
-                )}
-            </div>
-        </InputContext.Provider>
+            </InputContext.Provider>
+        </PageTemplate>
     );
 }
 
