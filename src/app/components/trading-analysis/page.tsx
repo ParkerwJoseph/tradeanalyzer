@@ -29,8 +29,10 @@ interface RiskMetrics {
 
 const SYSTEM_PROMPT = "You are a professional trading analyst. ";
 
+const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+
 const openai = new OpenAI({
-  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+  apiKey: apiKey,
   dangerouslyAllowBrowser: true
 });
 
