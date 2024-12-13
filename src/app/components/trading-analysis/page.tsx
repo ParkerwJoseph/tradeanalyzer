@@ -31,19 +31,24 @@ const SYSTEM_PROMPT = "You are a professional trading analyst. ";
 
 const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
 
-const openai = new OpenAI({
+// Initialize OpenAI client only if API key exists
+const openai = typeof window !== 'undefined' && apiKey ? new OpenAI({
   apiKey: apiKey,
   dangerouslyAllowBrowser: true
-});
+}) : null;
 
 const queryAI = async (prompt: string): Promise<string> => {
+  if (!openai) {
+    throw new Error('OpenAI API key is not configured');
+  }
+
   try {
     const completion = await openai.chat.completions.create({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt }
       ],
-      model: "gpt-4o",
+      model: "gpt-4",
       temperature: 0.7,
     });
 

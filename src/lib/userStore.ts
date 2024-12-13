@@ -29,6 +29,15 @@ interface UserData {
   createdAt: string;
   lastLogin: string;
   updatedAt?: string;
+  riskAnalysis?: {
+    riskToleranceScore: number;
+    riskLevel: 'Conservative' | 'Moderate' | 'Aggressive';
+    holdingPeriodAnalysis?: string;
+    instrumentAnalysis?: string;
+    leveragedExposure?: string;
+    dividendExposure?: string;
+  };
+  lastAnalysisDate?: string;
 }
 
 export const initializeUserData = async (uid: string) => {

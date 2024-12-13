@@ -60,6 +60,9 @@ interface StockData {
         yield: string;
         rate: string | number;
     };
+    riskAnalysis?: {
+        riskToleranceScore?: number;
+    };
 }
 
 interface ConversationMessage {
@@ -830,18 +833,597 @@ interface SelectedConversation {
     id: string;
 }
 
-interface RiskMetrics {
-  riskToleranceScore: number
-  riskLevel: 'Conservative' | 'Moderate' | 'Aggressive'
-}
+// Add this helper function near other utility functions
+const calculateTechnicalRiskScore = (stockData: any): number => {
+    let riskScore = 5; // Start at middle of 1-10 scale
 
-// Wrap the component that uses useSearchParams in a Suspense boundary
-const StockGPT = () => {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
+    // Price relative to moving averages
+    const price = stockData.price?.current || 0;
+    const ma50 = stockData.technicalLevels?.fiftyDayMA || 0;
+    const ma200 = stockData.technicalLevels?.twoHundredDayMA || 0;
+
+    // Trend analysis with higher risk for downtrends
+    if (price > ma50 && ma50 > ma200) {
+        riskScore -= 1; // Uptrend reduces risk moderately
+    } else if (price < ma50 && ma50 < ma200) {
+        riskScore += 2.5; // Downtrend increases risk significantly
+    }
     
-    </Suspense>
-  );
+    // Price below moving averages adds more risk
+    if (price < ma50) riskScore += 1;
+    if (price < ma200) riskScore += 1.5;
+
+    // Volatility analysis
+    const dayRange = stockData.price?.dayRange;
+    if (dayRange) {
+        const volatility = (dayRange.high - dayRange.low) / dayRange.low;
+        riskScore += volatility * 10; // Scaled down for 1-10 range
+    }
+
+    // Volume analysis
+    const volumeRatio = stockData.tradingData?.volumeRatio || 1;
+    if (volumeRatio > 1.5) riskScore += 1;
+
+    // Normalize between 1 and 10
+    return Math.min(Math.max(Math.round(riskScore * 10) / 10, 1), 10);
 };
 
-export default StockGPT;
+// Create a separate component for the main content
+function StockGPTContent() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const [messages, setMessages] = useState<ConversationMessage[]>([]);
+    const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [currentTicker, setCurrentTicker] = useState<string>('');
+    const [showCandlestick, setShowCandlestick] = useState(false);
+    const [tickerSymbols, setTickerSymbols] = useState<string[]>([]);
+    const [error, setError] = useState<string>('');
+    const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
+    const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+    const [showSidebar, setShowSidebar] = useState(false);
+    const [showNews, setShowNews] = useState(false);
+    const [navigationItems, setNavigationItems] = useState([
+        { label: 'Home', path: '/' },
+        { label: 'Stock Analysis', path: '/stock-analysis' },
+        { label: 'Stock News', path: '/stock-news' },
+        { label: 'Settings', path: '/settings' }
+    ]);
+    const [pathname, setPathname] = useState('/');
+    const { theme, setTheme } = useTheme();
+    const [mounted, setMounted] = useState(false);
+    const [similarTickers, setSimilarTickers] = useState<SimilarTicker[]>([]);
+
+    const tickerPatterns = {
+        dollarSymbol: /\$([A-Za-z]{1,5})\b/,
+        standardFormat: /\b(?:of|at|is|about|analyze|for)\s+([A-Za-z]{1,5})\b/i,
+        standalone: /\b([A-Za-z]{1,5})\b/,
+    }
+
+    const generateChatTitle = async (content: string): Promise<string> => {
+        const titlePrompt = `Generate a two-word title for a chat about: "${content}". 
+        Response should be exactly two words, capitalized. Example: "Stock Analysis" or "Tesla Review"`;
+        
+        try {
+            const response = await queryAI(titlePrompt);
+            return response.trim();
+        } catch (error) {
+            console.error('Failed to generate title:', error);
+            return 'New Chat';
+        }
+    };
+
+    const createNewChat = () => {
+        const newChatId = crypto.randomUUID(); // Generate unique ID
+        const newChat: ChatSession = {
+            id: newChatId,
+            title: 'New Chat',
+            timestamp: new Date(),
+            messages: []
+        };
+        setChatHistory(prev => [...prev, newChat]);
+        setCurrentChatId(newChatId);
+        setMessages([]); // Clear current messages
+    };
+
+    const addMessage = (type: ConversationMessage['type'], content: string, data?: Partial<StockData>) => {
+        console.log('Adding message:', { type, content, data }); // Debug log
+        setMessages(prev => [...prev, {
+            type,
+            content,
+            timestamp: new Date(),
+            data,
+            ticker: currentTicker
+        }]);
+    };
+
+    const switchChat = (chatId: string) => {
+        const chat = chatHistory.find(c => c.id === chatId);
+        if (chat) {
+            setCurrentChatId(chatId);
+            setMessages(chat.messages);
+        }
+    };
+
+    const extractTicker = (input: string): string | null => {
+        // Look for "about TICKER" pattern specifically
+        const match = input.match(/about\s+(\$?[A-Za-z]{1,5})/i);
+        return match ? match[1].replace('$', '').toUpperCase() : null;
+    };
+
+    // Update the handleError function with Axios error type
+    const handleError = (error: ApiErrorResponse) => {
+        if ('response' in error && error.response?.data) {
+            setError(error.response.data.message || 'An error occurred while fetching data');
+        } else {
+            setError(error.message || 'An unexpected error occurred');
+        }
+        setIsLoading(false);
+    };
+
+    // Modify the analyzeStock function to show news automatically
+    const analyzeStock = async (ticker: string) => {
+        try {
+            await trackTickerSearch(ticker);
+            setCurrentTicker(ticker);
+            setIsLoading(true);
+            addMessage('system', `Analyzing ${ticker}...`);
+
+            // Get user's risk profile from Firebase
+            const uid = Cookies.get('uid');
+            if (uid) {
+                const userRef = ref(database, `users/${uid}/riskAnalysis`);
+                const snapshot = await get(userRef);
+                const riskProfile = snapshot.val();
+                
+                // Construct the URL with risk tolerance if available
+                const baseUrl = `https://us-central1-shopify-webscraper.cloudfunctions.net/app/analyzeStock?ticker=${ticker}&detailed=true`;
+                const url = riskProfile?.riskToleranceScore 
+                    ? `${baseUrl}&riskTolerance=${riskProfile.riskToleranceScore}&riskLevel=${riskProfile.riskLevel}`
+                    : baseUrl;
+
+                const response = await axios.get(url);
+
+                if (response.data.success) {
+                    const stockData = response.data.data;
+                    const technicalRiskScore = calculateTechnicalRiskScore(stockData);
+                    
+                    setMessages(prev => [
+                        ...prev.slice(0, -1),
+                        {
+                            type: 'data' as const,
+                            content: `Here are the key metrics for ${ticker}:`,
+                            timestamp: new Date(),
+                            data: {
+                                ...stockData,
+                                ticker: ticker.toUpperCase(),
+                                riskAnalysis: {
+                                    ...riskProfile,
+                                    riskToleranceScore: technicalRiskScore,
+                                    technicalRiskLevel: technicalRiskScore > 7 ? 'High' : 
+                                                      technicalRiskScore > 4 ? 'Medium' : 'Low'
+                                }
+                            },
+                            ticker: ticker.toUpperCase()
+                        },
+                        {
+                            type: 'system' as const,
+                            content: response.data.analysis,
+                            timestamp: new Date(),
+                            ticker: ticker.toUpperCase()
+                        }
+                    ].filter(msg => msg.content !== undefined));
+
+                    // Fetch similar tickers and show news
+                    const similarTickersData = await fetchSimilarTickers(ticker);
+                    setSimilarTickers(similarTickersData);
+                    setShowNews(true);
+                } else {
+                    throw new Error(response.data.message || 'Failed to analyze stock');
+                }
+            }
+        } catch (error) {
+            console.error('Analysis error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+            addMessage('error', `Error analyzing ${ticker}: ${errorMessage}`);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!input.trim() || isLoading) return;
+        
+        try {
+            setIsLoading(true);
+            addMessage('user', input);
+            
+            // Query AI for intent analysis
+            const aiResponse = await queryAI(input);
+            const parsed = parseAIResponse(aiResponse);
+            
+            if (parsed.function === 'unknown') {
+                addMessage('error', 'I could not understand your query. Please try again with a specific stock symbol.');
+                return;
+            }
+            
+            // Handle different functions
+            switch (parsed.function) {
+                case 'options':
+                    await fetchOptionsData(parsed.ticker);
+                    break;
+                case 'price':
+                    await fetchPriceData(parsed.ticker);
+                    break;
+                case 'analyze':
+                    await analyzeStock(parsed.ticker);
+                    break;
+                default:
+                    await analyzeStock(parsed.ticker);
+            }
+            
+            setInput('');
+        } catch (error) {
+            console.error('Error:', error);
+            addMessage('error', 'An error occurred while processing your request.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Add new data fetching functions
+    const fetchOptionsData = async (ticker: string) => {
+        try {
+            setCurrentTicker(ticker);
+            addMessage('system', `Fetching options data for ${ticker}...`);
+
+            const response = await axios.get(
+                `https://us-central1-shopify-webscraper.cloudfunctions.net/app/unusualOptions?ticker=${ticker}`
+            );
+
+            if (response.data.success) {
+                addMessage('data', `Here's the options analysis for ${ticker}:`, {
+                    ...response.data.data,
+                    ticker
+                });
+            } else {
+                throw new Error(response.data.message || 'Failed to fetch options data');
+            }
+        } catch (error) {
+            console.error('Options data error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+            addMessage('error', `Error fetching options data for ${ticker}: ${errorMessage}`);
+        }
+    };
+
+    const fetchPriceData = async (ticker: string) => {
+        try {
+            setCurrentTicker(ticker);
+            addMessage('system', `Fetching price data for ${ticker}...`);
+
+            const response = await axios.get(
+                `https://us-central1-shopify-webscraper.cloudfunctions.net/app/analyzeStock?ticker=${ticker}`
+            );
+
+            if (response.data.success && response.data.data) {
+                const priceData = response.data.data;
+                addMessage('data', `Current price data for ${ticker}:`, {
+                    price: priceData.price,
+                    changes: {
+                        daily: priceData.changes?.daily || 'N/A',
+                        momentum: priceData.changes?.momentum || 'N/A',
+                        trendStrength: priceData.changes?.trendStrength || 'N/A'
+                    },
+                    ticker
+                });
+            } else {
+                throw new Error(response.data.message || 'Failed to fetch price data');
+            }
+        } catch (error) {
+            console.error('Price data error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+            addMessage('error', `Error fetching price data for ${ticker}: ${errorMessage}`);
+        }
+    };
+
+    const fetchVolumeData = async (ticker: string) => {
+        try {
+            setCurrentTicker(ticker);
+            addMessage('system', `Fetching volume data for ${ticker}...`);
+
+            const response = await axios.get(
+                `https://us-central1-shopify-webscraper.cloudfunctions.net/app/analyzeStock?ticker=${ticker}`
+            );
+
+            if (response.data.success && response.data.data) {
+                const volumeData = response.data.data;
+                addMessage('data', `Volume analysis for ${ticker}:`, {
+                    tradingData: volumeData.tradingData,
+                    ticker
+                });
+            } else {
+                throw new Error(response.data.message || 'Failed to fetch volume data');
+            }
+        } catch (error) {
+            console.error('Volume data error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+            addMessage('error', `Error fetching volume data for ${ticker}: ${errorMessage}`);
+        }
+    };
+
+    // Add this effect to scroll to bottom when messages update
+    useEffect(() => {
+        const chatContainer = document.getElementById('chat-container');
+        if (chatContainer) {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    }, [messages]);
+
+    // Add this effect to handle mounting
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    // Example of using useEffect for client-side only code
+    useEffect(() => {
+        // Code that relies on the window object or needs to run only on the client
+        if (typeof window !== 'undefined') {
+            // Client-side logic here
+        }
+    }, []);
+
+    useEffect(() => {
+        // Check for pending query on component mount
+        const pendingQuery = localStorage.getItem('pendingStockQuery');
+        if (pendingQuery) {
+            // Clear the pending query immediately to prevent reuse
+            localStorage.removeItem('pendingStockQuery');
+            
+            // Add the user's question to the chat first
+            addMessage('user', pendingQuery);
+            
+            // Extract and analyze the ticker
+            const ticker = extractTicker(pendingQuery);
+            if (ticker) {
+                analyzeStock(ticker);
+            } else {
+                addMessage('error', 'Unable to identify a valid stock symbol in your query.');
+            }
+        }
+    }, []); // Run once on component mount
+
+    useEffect(() => {
+        const loadChatHistory = async () => {
+            const chatId = searchParams.get('chat')
+            if (!chatId) return;
+
+            try {
+                const uid = Cookies.get('uid');
+                if (!uid) {
+                    console.error('No UID found in cookies');
+                    addMessage('error', 'Please log in to view conversation history');
+                    return;
+                }
+
+                // First try to get the conversation directly from Firebase
+                const conversationsRef = ref(database, `users/${uid}/conversations/${chatId}`);
+                const snapshot = await get(conversationsRef);
+                
+                if (!snapshot.exists()) {
+                    throw new Error('Conversation not found');
+                }
+
+                const conversation = snapshot.val();
+                
+                if (!conversation || !conversation.messages) {
+                    throw new Error('Invalid conversation data');
+                }
+
+                // Convert messages object to array if needed
+                const messages = Array.isArray(conversation.messages) 
+                    ? conversation.messages 
+                    : Object.values(conversation.messages);
+
+                setMessages(messages);
+                setCurrentChatId(chatId);
+                
+                // Find last message with ticker
+                const lastDataMessage = [...messages]
+                    .reverse()
+                    .find(msg => msg.ticker);
+                
+                if (lastDataMessage?.ticker) {
+                    setCurrentTicker(lastDataMessage.ticker);
+                }
+
+            } catch (error) {
+                console.error('Error loading conversation:', error);
+                const errorMessage = error instanceof Error 
+                    ? error.message 
+                    : 'An unexpected error occurred';
+                addMessage('error', `Failed to load conversation history: ${errorMessage}`);
+            }
+        };
+
+        loadChatHistory();
+    }, [searchParams]); // Run when URL params change
+
+    return (
+        <div className="flex flex-col h-full fixed inset-0 pt-14 bg-background">
+            {/* Messages Area - Only this should scroll */}
+            <div className="flex-1 overflow-y-auto min-h-0">
+                <div className="p-2 md:p-4">
+                    <div className="max-w-3xl mx-auto space-y-4 md:space-y-6">
+                        {messages.length === 0 ? (
+                            // Welcome message when chat is empty
+                            <div className="h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center">
+                                <h1 className="text-4xl font-bold text-muted-foreground mb-4">
+                                    StockGPT
+                                </h1>
+                                <p className="text-xl text-muted-foreground">
+                                    Ask about any stock to get started
+                                </p>
+                            </div>
+                        ) : (
+                            // Regular messages when chat has content
+                            messages.map((message, index) => (
+                                <div
+                                    key={index}
+                                    className={cn(
+                                        "flex",
+                                        message.type === 'user' ? "justify-end" : "justify-start"
+                                    )}
+                                >
+                                    <div
+                                        className={cn(
+                                            "max-w-[95%] md:max-w-[90%] rounded-lg px-3 py-2 md:px-4 md:py-3",
+                                            message.type === 'user'
+                                                ? "bg-primary text-primary-foreground"
+                                                : "bg-muted text-foreground"
+                                        )}
+                                    >
+                                        <AnimatedMessage 
+                                            content={message.content} 
+                                            isNew={index === messages.length - 1 && message.type !== 'user'} 
+                                        />
+                                        {message.type === 'data' && message.data && (
+                                            <div className="mt-4 md:mt-6 space-y-4">
+                                                <StockDataDisplay 
+                                                    data={message.data as StockData} 
+                                                    symbol={message.data.ticker || currentTicker} 
+                                                />
+                                                {message.content.includes('**') && (
+                                                    <Recommendations content={message.content} />
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Input Area - Updated background */}
+            <div className="bg-background p-2 md:p-4">
+                <div className="max-w-3xl mx-auto space-y-2 md:space-y-4">
+                    {currentTicker && (
+                        <div className="mb-2 md:mb-4 overflow-x-auto">
+                            <SimilarTickers 
+                                tickers={similarTickers} 
+                                onAnalyze={analyzeStock} 
+                            />
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="flex gap-2">
+                        <Input
+                            type="text"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            placeholder="Ask about a stock..."
+                            disabled={isLoading}
+                            className="flex-1 text-sm md:text-base"
+                        />
+                        <Button 
+                            type="submit" 
+                            disabled={isLoading || !input.trim()} 
+                            size="icon"
+                            className="shrink-0"
+                        >
+                            {isLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Send className="h-4 w-4" />
+                            )}
+                        </Button>
+                    </form>
+                </div>
+            </div>
+
+            {/* News Panel Overlay */}
+            {showNews && currentTicker && (
+                <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-background border-l border-border z-50">
+                    <div className="p-4 border-b border-border flex justify-between items-center">
+                        <h2 className="font-semibold">News for {currentTicker}</h2>
+                        <Button variant="ghost" size="icon" onClick={() => setShowNews(false)}>
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                    <div className="p-4 overflow-y-auto h-[calc(100vh-65px)]">
+                        <NewsPanel ticker={currentTicker} />
+                    </div>
+                </div>
+            )}
+
+            {/* Fullscreen Chart Modal */}
+            {showCandlestick && currentTicker && (
+                <div className="fixed inset-0 bg-black/90 z-50">
+                    <div className="absolute top-4 right-4 z-50">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setShowCandlestick(false)}
+                            className="bg-white/10 hover:bg-white/20"
+                        >
+                            <X className="h-4 w-4 text-white" />
+                        </Button>
+                    </div>
+                    <div className="h-full p-4">
+                        <EnhancedTradingViewChart 
+                            symbol={currentTicker} 
+                            containerId={`fullscreen-chart`} 
+                        />
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// Main component with Suspense wrapper
+export default function StockGPT() {
+    return (
+        <PageTemplate title="" description="">
+            <Suspense fallback={
+                <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+            }>
+                <StockGPTContent />
+            </Suspense>
+        </PageTemplate>
+    );
+}
+
+// Add custom tooltip component
+const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+        const data = payload[0].payload;
+        return (
+            <div className="bg-white border rounded-lg shadow-lg p-4">
+                <p className="text-sm text-gray-600">
+                    {format(new Date(data.timestamp), 'MMM dd, yyyy')}
+                </p>
+                <p className="text-lg font-semibold text-gray-900">
+                    ${data.close.toFixed(2)}
+                </p>
+                {data.volume && (
+                    <p className="text-sm text-gray-500">
+                        Volume: {data.volume.toLocaleString()}
+                    </p>
+                )}
+                {data.open && (
+                    <div className="text-sm text-gray-500">
+                        <p>Open: ${data.open.toFixed(2)}</p>
+                        <p>High: ${data.high.toFixed(2)}</p>
+                        <p>Low: ${data.low.toFixed(2)}</p>
+                    </div>
+                )}
+            </div>
+        );
+    }
+    return null;
+};

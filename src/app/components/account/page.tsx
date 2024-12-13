@@ -9,9 +9,8 @@ import { auth } from '@/lib/firebase'
 import { useAuthState } from 'react-firebase-hooks/auth'
 import { updateProfile } from 'firebase/auth'
 import { User, Shield, CreditCard } from 'lucide-react'
-import { getUserData } from '@/lib/userStore'
 import { database } from '@/lib/firebase'
-import { ref, update } from 'firebase/database'
+import { ref, update, onValue, get } from 'firebase/database'
 import { storage } from '@/lib/firebase'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import TradingAnalyzer from '@/components/TradingAnalyzer'
@@ -22,10 +21,14 @@ interface UserProfile {
   createdAt: string;
   lastLogin: string;
   riskAnalysis?: {
-    riskToleranceScore: number
-    riskLevel: 'Conservative' | 'Moderate' | 'Aggressive'
-  }
-  lastAnalysisDate?: string
+    riskToleranceScore: number;
+    riskLevel: 'Conservative' | 'Moderate' | 'Aggressive';
+    holdingPeriodAnalysis?: string;
+    instrumentAnalysis?: string;
+    leveragedExposure?: string;
+    dividendExposure?: string;
+  };
+  lastAnalysisDate?: string;
 }
 
 export default function AccountPage() {
@@ -40,18 +43,42 @@ export default function AccountPage() {
   useEffect(() => {
     const loadUserProfile = async () => {
       if (user) {
-        const userData = await getUserData(user.uid);
+        const userRef = ref(database, `users/${user.uid}`);
+        const snapshot = await get(userRef);
+        const userData = snapshot.val();
+        
         if (userData) {
           setUserProfile({
-            subscriptionType: userData.subscriptionType,
-            questionCount: userData.questionCount,
-            createdAt: userData.createdAt,
-            lastLogin: userData.lastLogin,
+            subscriptionType: userData.subscriptionType || 'free',
+            questionCount: userData.questionCount || 0,
+            createdAt: userData.createdAt || new Date().toISOString(),
+            lastLogin: userData.lastLogin || new Date().toISOString(),
+            riskAnalysis: userData.riskAnalysis || null,
+            lastAnalysisDate: userData.lastAnalysisDate || null
           });
         }
       }
     };
+    
     loadUserProfile();
+    
+    // Set up real-time listener for risk analysis updates
+    if (user) {
+      const userRef = ref(database, `users/${user.uid}`);
+      const unsubscribe = onValue(userRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data && data.riskAnalysis) {
+          setUserProfile(prev => prev ? {
+            ...prev,
+            riskAnalysis: data.riskAnalysis,
+            lastAnalysisDate: data.lastAnalysisDate
+          } : null);
+        }
+      });
+
+      // Cleanup listener on unmount
+      return () => unsubscribe();
+    }
   }, [user]);
 
   const handleUpdateProfile = async () => {
@@ -232,10 +259,10 @@ export default function AccountPage() {
             <CardTitle>Trading Risk Analysis</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-col space-y-4">
               {userProfile?.riskAnalysis ? (
                 <>
-                  <div className="flex-1">
+                  <div className="space-y-2">
                     <div className="text-2xl font-bold text-primary">
                       {userProfile.riskAnalysis.riskToleranceScore.toFixed(1)}
                     </div>
@@ -243,11 +270,12 @@ export default function AccountPage() {
                       Risk Score - {userProfile.riskAnalysis.riskLevel} Trader
                     </p>
                     {userProfile.lastAnalysisDate && (
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground">
                         Last analyzed: {new Date(userProfile.lastAnalysisDate).toLocaleDateString()}
                       </p>
                     )}
                   </div>
+                  
                   <TradingAnalyzer 
                     userId={user!.uid} 
                     onAnalysisComplete={(metrics) => {
