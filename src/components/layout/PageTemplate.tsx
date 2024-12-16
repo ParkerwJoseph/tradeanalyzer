@@ -48,7 +48,7 @@ interface Conversation {
 
 
 const sidebarItems = [
-  { label: 'Home', path: '/components/stock-gpt', icon: <Search className="h-4 w-4" /> },
+  { label: 'Home', path: '/', icon: <Search className="h-4 w-4" /> },
   { label: 'Discover', path: '/components/discover', icon: <Compass className="h-4 w-4" /> },
   { label: 'Library', path: '/components/library', icon: <Library className="h-4 w-4" /> },
   { label: 'Watchlist', path: '/components/watchlist', icon: <BookmarkIcon className="h-4 w-4" /> }
@@ -176,13 +176,13 @@ const PageTemplate = ({ children, title, description }: PageTemplateProps) => {
                         "justify-start gap-2 w-full",
                         isCollapsed ? "w-6 px-1" : "w-full"
                     )}
-                    onClick={() => handleNavigation('/components/stock-gpt')}
+                    onClick={() => handleNavigation('/')}
                 >
                     <Search className="h-4 w-4" />
                     {!isCollapsed && "Home"}
                 </Button>
                 
-                {!isCollapsed && pathname.includes('/components/stock-gpt') && (
+                {!isCollapsed && pathname.includes('/') && (
                     <div className="ml-4 space-y-1">
                          {Object.entries(conversations)
                           .sort((a, b) => (b[1] as Conversation).createdAt - (a[1] as Conversation).createdAt)
@@ -194,10 +194,10 @@ const PageTemplate = ({ children, title, description }: PageTemplateProps) => {
                                 size="sm"
                                 className={cn(
                                     "w-full justify-start text-sm text-muted-foreground hover:text-foreground",
-                                    pathname === `/components/stock-gpt?chat=${id}` && "text-foreground"
+                                    pathname === `/?chat=${id}` && "text-foreground"
                                 )}
                                 onClick={() => {
-                                    handleNavigation(`/components/stock-gpt?chat=${id}`);
+                                    handleNavigation(`/?chat=${id}`);
                                 }}
                             >
                                 <div className="truncate">
