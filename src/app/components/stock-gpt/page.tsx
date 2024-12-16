@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useMemo, createContext, useContext, memo, Suspense } from 'react'
-import { Send, X, Moon, Sun, Plus, ChevronLeft, ChevronRight, Loader2, Search, Newspaper, User, Compass, Library, BookmarkIcon, LineChart, Menu } from 'lucide-react'
+import { useState, useEffect, useMemo, createContext, useContext, memo } from 'react'
+import { Send, X, Moon, Sun, Plus, ChevronLeft, ChevronRight, Loader2, Search, Newspaper, User, Compass, Library, BookmarkIcon, LineChart, Menu, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useTypewriter } from '@/hooks/useTypewriter'
@@ -14,8 +14,9 @@ import { useTheme } from "next-themes"
 import { useRouter, useSearchParams } from 'next/navigation'
 import Cookies from 'js-cookie'
 import { trackUserQuestion, logUserActivity, saveConversation, trackTickerSearch} from '@/lib/userStore'
-import { ref, get } from 'firebase/database'
+import { ref, get, set } from 'firebase/database'
 import { database } from '@/lib/firebase'
+import { OpenAI } from 'openai'
 
 // Types
 interface StockData {
@@ -63,22 +64,25 @@ interface StockData {
     riskAnalysis?: {
         riskToleranceScore?: number;
     };
+    options?: {
+        putCallRatio: number;
+        callVolume: number;
+        putVolume: number;
+        unusualStrikes?: {
+            calls: Array<OptionStrike>;
+            puts: Array<OptionStrike>;
+        };
+    };
 }
 
 interface ConversationMessage {
+    id: string;
     type: 'user' | 'system' | 'error' | 'data' | 'chart';
     content: string;
     timestamp: Date;
     data?: Partial<StockData>;
     ticker?: string;
-}
-
-interface StockAnalysisResponse {
-    success: boolean;
-    data?: StockData;
-    analysis?: string;
-    message?: string;
-    error?: string;
+    intent?: string;
 }
 
 // Add this type for API errors
@@ -211,16 +215,35 @@ function transformChartData(apiResponse: any): ChartDataPoint[] {
 }
 
 // Add the new AnimatedMessage component
-const AnimatedMessage = ({ content, isNew = false }: { content: string, isNew: boolean }) => {
-  const { displayedText, isTyping } = useTypewriter(content, isNew ? 30 : 0)
+const AnimatedMessage = ({ content, isNew = false, type = 'user' }: { content: string, isNew: boolean, type?: string }) => {
+  // Clean the text by removing special characters and markdown-style formatting
+  const cleanText = (text: string) => {
+    return text
+      .replace(/#+\s*/g, '')    // Remove all # characters and following spaces
+      .replace(/\*\*/g, '')     // Remove bold markers
+      .replace(/\*/g, '')       // Remove single asterisks
+      .replace(/`/g, '')        // Remove code markers
+      .replace(/\[|\]/g, '')    // Remove square brackets
+      .replace(/\n{3,}/g, '\n\n') // Replace multiple newlines with double newlines
+      .replace(/^[-•]/gm, '')   // Remove list markers at start of lines
+      .trim();
+  };
+
+  const cleanedText = cleanText(content);
+  const { displayedText, isTyping } = useTypewriter(cleanedText, isNew ? 30 : 0);
   
   return (
     <div className="whitespace-pre-wrap">
-      {displayedText}
-      {isTyping && <span className="inline-block w-1 h-4 ml-1 bg-current animate-pulse"/>}
+      {isNew ? displayedText : cleanedText}
+      {isTyping && isNew && <span className="inline-block w-1 h-4 ml-1 bg-current animate-pulse"/>}
+      {type === 'system' && (
+        <div className="text-xs text-gray-400 mt-4 border-t border-gray-700 pt-4">
+          Disclaimer: This analysis is for informational purposes only and should not be considered as financial or trading advice. Always conduct your own research and consult with a licensed financial advisor before making investment decisions.
+        </div>
+      )}
     </div>
   )
-}
+};
 
 // Update the MetricCard component with a more modern design
 const MetricCard = ({ title, metrics }: { 
@@ -273,60 +296,110 @@ const RelatedQuestion = ({ question, onClick }: { question: string; onClick: () 
 // Memoize the EnhancedTradingViewChart component
 const MemoizedTradingViewChart = memo(EnhancedTradingViewChart);
 
-// Update the StockDataDisplay component
-const StockDataDisplay = ({ data, symbol }: { data: StockData; symbol: string }) => {
-  const [input, setInput] = useContext(InputContext);
-  const chartId = useMemo(() => `chart-${symbol}`, [symbol]); // Create stable ID
+// Add near other interfaces at the top
+interface OptionStrike {
+  strike: number;
+  volume: number;
+  openInterest: number;
+  impliedVolatility: number;
+  percentFromPrice: number;
+}
+
+// Update the StockDataDisplay component to show detailed options data
+const StockDataDisplay = ({ data, analysis }: { 
+  data: {
+    ticker: string;
+    price: { current: number };
+    changes: { daily: string };
+    options?: {
+      putCallRatio: number;
+      callVolume: number;
+      putVolume: number;
+      unusualStrikes?: {
+        calls: OptionStrike[];
+        puts: OptionStrike[];
+      };
+    };
+    technicals?: {
+      rsi: number;
+      macd: { macd: number; signal: number };
+    };
+    technicalLevels?: {
+      fiftyDayMA: number;
+      twoHundredDayMA: number;
+      support: number;
+      resistance: number;
+    };
+  },
+  analysis: { intent: string }
+}) => {
+  const sortedCalls = data.options?.unusualStrikes?.calls?.sort((a: OptionStrike, b: OptionStrike) => b.volume - a.volume) || [];
+  const sortedPuts = data.options?.unusualStrikes?.puts?.sort((a: OptionStrike, b: OptionStrike) => b.volume - a.volume) || [];
 
   return (
-    <div className="space-y-6 mt-4">
-      {/* Chart section */}
-      <div className="rounded-2xl overflow-hidden bg-[#0F0F10]/40 backdrop-blur-md border border-white/5">
-        <MemoizedTradingViewChart 
-          symbol={symbol} 
-          containerId={chartId}
-        />
+    <div className="font-mono whitespace-pre-wrap text-sm space-y-4">
+      <div className="text-yellow-400 font-bold">Analysis Results:</div>
+
+      <div>
+        <div className="text-blue-400 font-bold">{data.ticker}:</div>
+        <div>Price: ${data.price.current.toFixed(2)}</div>
+        <div>Change: {data.changes.daily}</div>
       </div>
 
-      {/* Scrollable Metrics Container */}
-      <div className="overflow-x-auto scrollbar-hide">
-        <div className="flex gap-3 pb-1">
-          <MetricCard
-            title="Price"
-            metrics={[
-              { label: "Current", value: safeNumberFormat(data.price.current, '$') },
-              { label: "Previous", value: safeNumberFormat(data.price.previousClose, '$') },
-              { label: "Range", value: data.price.dayRange 
-                ? `$${data.price.dayRange.low.toFixed(2)} - $${data.price.dayRange.high.toFixed(2)}` 
-                : 'N/A' 
-              },
-            ]}
-          />
-          <MetricCard
-            title="Technical"
-            metrics={[
-              { label: "MA50", value: safeNumberFormat(data.technicalLevels.fiftyDayMA, '$') },
-              { label: "MA200", value: safeNumberFormat(data.technicalLevels.twoHundredDayMA, '$') },
-              { label: "Support/Res", value: `${safeNumberFormat(data.technicalLevels.support, '$')} / ${safeNumberFormat(data.technicalLevels.resistance, '$')}` },
-            ]}
-          />
-          <MetricCard
-            title="Volume"
-            metrics={[
-              { label: "Current", value: formatNumber(data.tradingData.volume) },
-              { label: "Average", value: formatNumber(data.tradingData.avgVolume) },
-              { label: "Ratio", value: safeNumberFormat(data.tradingData.volumeRatio) },
-            ]}
-          />
-          <MetricCard
-            title="Valuation"
-            metrics={[
-              { label: "Market Cap", value: formatLargeNumber(data.valuationMetrics.marketCap) },
-              { label: "P/E Ratio", value: safeNumberFormat(data.valuationMetrics.peRatio) },
-              { label: "Forward P/E", value: safeNumberFormat(data.valuationMetrics.forwardPE) },
-            ]}
-          />
+      {data.technicalLevels && (
+        <div>
+          <div className="text-yellow-400">Technical Levels:</div>
+          <div>50-Day MA: ${data.technicalLevels.fiftyDayMA?.toFixed(2) || 'N/A'}</div>
+          <div>200-Day MA: ${data.technicalLevels.twoHundredDayMA?.toFixed(2) || 'N/A'}</div>
+          <div>Support: ${data.technicalLevels.support?.toFixed(2) || 'N/A'}</div>
+          <div>Resistance: ${data.technicalLevels.resistance?.toFixed(2) || 'N/A'}</div>
         </div>
+      )}
+
+      {data.technicals && (
+        <div>
+          <div className="text-yellow-400">Technical Indicators:</div>
+          <div>RSI: {data.technicals.rsi?.toFixed(2) || 'N/A'}</div>
+          <div>MACD: {data.technicals.macd?.macd?.toFixed(2) || 'N/A'}</div>
+          <div>Signal: {data.technicals.macd?.signal?.toFixed(2) || 'N/A'}</div>
+        </div>
+      )}
+
+      {data.options && (
+        <>
+          <div>
+            <div className="text-yellow-400">Options Overview:</div>
+            <div>Put/Call Ratio: {data.options.putCallRatio?.toFixed(2) || 'N/A'}</div>
+            <div>Total Call Volume: {data.options.callVolume?.toLocaleString() || 'N/A'}</div>
+            <div>Total Put Volume: {data.options.putVolume?.toLocaleString() || 'N/A'}</div>
+          </div>
+
+          {sortedCalls.length > 0 && (
+            <div>
+              <div className="text-yellow-400">Unusual Call Activity:</div>
+              {sortedCalls.map((call: OptionStrike, idx: number) => (
+                <div key={idx}>
+                  Strike: ${call.strike}, Volume: {call.volume.toLocaleString()}, OI: {call.openInterest.toLocaleString()}, IV: {(call.impliedVolatility * 100).toFixed(1)}%, % From Price: {call.percentFromPrice.toFixed(2)}%
+                </div>
+              ))}
+            </div>
+          )}
+
+          {sortedPuts.length > 0 && (
+            <div>
+              <div className="text-yellow-400">Unusual Put Activity:</div>
+              {sortedPuts.map((put: OptionStrike, idx: number) => (
+                <div key={idx}>
+                  Strike: ${put.strike}, Volume: {put.volume.toLocaleString()}, OI: {put.openInterest.toLocaleString()}, IV: {(put.impliedVolatility * 100).toFixed(1)}%, % From Price: {put.percentFromPrice.toFixed(2)}%
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="text-xs text-gray-400 mt-4 border-t border-gray-700 pt-4">
+        Disclaimer: This analysis is for informational purposes only and should not be considered as financial or trading advice. Always conduct your own research and consult with a licensed financial advisor before making investment decisions.
       </div>
     </div>
   );
@@ -429,17 +502,11 @@ interface ParsedAIResponse {
 }
 
 // Add function to parse AI response
-const parseAIResponse = (response: string): ParsedAIResponse => {
-    const parts = response.trim().split(' ');
-    if (parts.length === 2) {
-        return {
-            function: parts[0].toLowerCase(),
-            ticker: parts[1].toUpperCase()
-        };
-    }
+const parseAIResponse = (response: StockAnalysisResponse): ParsedAIResponse => {
+    const parts = response.answer.trim().split(' ');
     return {
-        function: 'unknown',
-        ticker: 'UNKNOWN'
+        function: parts[0]?.toLowerCase() || 'unknown',
+        ticker: parts[1]?.toUpperCase() || 'UNKNOWN'
     };
 };
 
@@ -472,31 +539,6 @@ Output: analyze GOOGL
 If no ticker is found, or the input is unclear, always return: unknown UNKNOWN.
 
 User Query: `;
-
-const queryAI = async (input: string): Promise<string> => {
-    try {
-        const fullPrompt = SYSTEM_PROMPT + input;
-        
-        const response = await fetch(
-            'https://us-central1-personalgpt-55bef.cloudfunctions.net/app/basicQuestion?q=' + 
-            encodeURIComponent(`"${fullPrompt}"`),
-            {
-                method: 'POST',
-                redirect: 'follow'
-            }
-        );
-
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-
-        const data = await response.json();
-        return data.message;
-    } catch (error) {
-        console.error('AI Query Error:', error);
-        throw error;
-    }
-};
 
 // Add this interface at the top with your other types
 interface ChatSession {
@@ -865,13 +907,353 @@ const calculateTechnicalRiskScore = (stockData: any): number => {
     if (volumeRatio > 1.5) riskScore += 1;
 
     // Normalize between 1 and 10
-    return Math.min(Math.max(Math.round(riskScore * 10) / 10, 1), 10);
+    return Math.min(Math.max(Math.round(riskScore * 10) / 10, 10)); 
 };
 
-// Create a separate component for the main content
-function StockGPTContent() {
+// Add near the top with other constants
+const SAMPLE_QUESTIONS = [
+  "What's the current market sentiment for AAPL?",
+  "Analyze the technical indicators for TSLA",
+  "Compare MSFT and GOOGL performance",
+  "Explain recent volatility in META stock",
+  "What are the key support levels for NVDA?",
+  "Analyze the dividend history of JNJ",
+  "What's causing the price movement in AMD?",
+  "Show me technical analysis for AMZN",
+  "Explain the P/E ratio of SPY",
+  "What are the resistance levels for BTC?",
+];
+
+// Add this new component
+const ScrollingQuestions = ({ onQuestionClick }: { onQuestionClick: (question: string) => void }) => {
+  return (
+    <div className="relative w-full overflow-hidden py-4 before:absolute before:left-0 before:top-0 before:z-10 before:h-full before:w-20 before:bg-gradient-to-r before:from-background before:to-transparent after:absolute after:right-0 after:top-0 after:z-10 after:h-full after:w-20 after:bg-gradient-to-l after:from-background after:to-transparent">
+      <div className="animate-scroll flex gap-4 whitespace-nowrap">
+        {[...SAMPLE_QUESTIONS, ...SAMPLE_QUESTIONS].map((question, index) => (
+          <button
+            key={`${question}-${index}`}
+            onClick={() => onQuestionClick(question)}
+            className="inline-flex px-4 py-2 rounded-full border border-white/10 bg-white/5 
+                     hover:bg-white/10 transition-colors duration-200 text-sm text-white/70 
+                     hover:text-white/90 whitespace-nowrap"
+          >
+            {question}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Add this new interface for the API response
+interface StockAnalysisResponse {
+  success: boolean;
+  data: {
+    ticker: string;
+    price: { current: number };
+    changes: { daily: string };
+    options?: {
+      putCallRatio: number;
+      callVolume: number;
+      putVolume: number;
+      unusualStrikes?: {
+        calls: Array<OptionStrike>;
+        puts: Array<OptionStrike>;
+      };
+    };
+    technicals?: {
+      rsi: number;
+      macd: { macd: number; signal: number };
+    };
+    technicalLevels?: {
+      fiftyDayMA: number;
+      twoHundredDayMA: number;
+      support: number;
+      resistance: number;
+    };
+  };
+  answer: string;
+  message?: string;
+}
+
+// Update the queryAI function
+const queryAI = async (input: string): Promise<StockAnalysisResponse> => {
+  try {
+    const response = await axios.post(
+      'https://us-central1-shopify-webscraper.cloudfunctions.net/app/askQuestion',
+      {
+        question: input,
+        analysis: await getQuestionAnalysis(input)
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error('AI Query Error:', error);
+    throw error;
+  }
+};
+
+// Add function to get question analysis
+const getQuestionAnalysis = async (input: string) => {
+    try {
+        const response = await axios.post(
+            'https://api.openai.com/v1/chat/completions',
+            {
+                messages: [{
+                    role: "user",
+                    content: `Analyze this question about stocks: "${input}"
+                    Return a JSON object with:
+                    {
+                        "intent": "sentiment" | "technical" | "price" | "options",
+                        "tickers": string[],
+                        "timeframe": "intraday" | "short_term" | "long_term"
+                    }`
+                }],
+                model: "gpt-4-turbo-preview",
+                temperature: 0.3,
+                response_format: { type: "json_object" }
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        return JSON.parse(response.data.choices[0].message.content);
+    } catch (error) {
+        console.error('Analysis Error:', error);
+        throw new Error('Failed to analyze question');
+    }
+};
+
+// Update your message rendering to include the new data display
+const renderMessage = (message: ConversationMessage) => {
+  if (message.type === 'data' && message.data) {
+    return (
+      <>
+        <div className="mt-4 md:mt-6 space-y-4 bg-[#0F0F10] p-4 rounded-lg">
+          <StockDataDisplay 
+            data={message.data as unknown as {
+              ticker: string;
+              price: { current: number };
+              changes: { daily: string };
+              options?: {
+                putCallRatio: number;
+                callVolume: number;
+                putVolume: number;
+                unusualStrikes?: {
+                  calls: Array<{
+                    strike: number;
+                    volume: number;
+                    openInterest: number;
+                    impliedVolatility: number;
+                    percentFromPrice: number;
+                  }>;
+                  puts: Array<{
+                    strike: number;
+                    volume: number;
+                    openInterest: number;
+                    impliedVolatility: number;
+                    percentFromPrice: number;
+                  }>;
+                };
+              };
+              technicals?: {
+                rsi: number;
+                macd: { macd: number; signal: number };
+              };
+              technicalLevels?: {
+                fiftyDayMA: number;
+                twoHundredDayMA: number;
+                support: number;
+                resistance: number;
+              };
+            }}
+            analysis={{ intent: message.intent || 'unknown' }}
+          />
+        </div>
+        <div className="mt-4 text-white/90">{message.content}</div>
+      </>
+    );
+  }
+  // ... rest of your message rendering logic
+};
+
+// Add FeedbackType enum at the top of the file with other types
+type FeedbackType = 'up' | 'down';
+
+const FeedbackButtons = ({ messageId, question, answer }: { messageId: string, question: string, answer: string }) => {
+  const [feedback, setFeedback] = useState<FeedbackType | null>(null);
+  const [showFeedbackInput, setShowFeedbackInput] = useState(false);
+  const [feedbackNote, setFeedbackNote] = useState('');
+
+  const handleFeedback = async (type: FeedbackType | null) => {
+    if (type === null) {
+      setFeedback(null);
+      setShowFeedbackInput(false);
+      return;
+    }
+
+    if (feedback) return; // Prevent multiple submissions
+    setFeedback(type);
+
+    if (type === 'down') {
+      setShowFeedbackInput(true);
+      return; // Wait for feedback note before submitting
+    }
+
+    await submitFeedback(type);
+  };
+
+  const submitFeedback = async (type: FeedbackType, note?: string) => {
+    try {
+      const uid = Cookies.get('uid');
+      if (!uid) return;
+
+      const feedbackData = {
+        timestamp: new Date().toISOString(),
+        type,
+        question: question || 'No question provided',
+        answer: answer || 'No answer provided',
+        feedbackNote: note || '',
+        needsReview: type === 'down',
+        reviewed: false
+      };
+
+      const feedbackRef = ref(database, `feedback/${uid}/${messageId}`);
+      await set(feedbackRef, feedbackData);
+
+      if (type === 'down' && note) {
+        const reviewRef = ref(database, `reviews/pending/${messageId}`);
+        await set(reviewRef, {
+          ...feedbackData,
+          userId: uid,
+          status: 'pending'
+        });
+      }
+
+      setShowFeedbackInput(false);
+    } catch (error) {
+      console.error('Error saving feedback:', error);
+    }
+  };
+
+  const handleSubmitNote = async () => {
+    if (!feedbackNote.trim()) return;
+    await submitFeedback('down', feedbackNote);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 mt-2">
+        <button
+          onClick={() => handleFeedback('up')}
+          disabled={feedback !== null}
+          className={cn(
+            "p-1 rounded hover:bg-white/10 transition-colors",
+            feedback === 'up' && "text-green-500"
+          )}
+        >
+          <ThumbsUp className={cn(
+            "h-4 w-4",
+            feedback === 'up' ? "fill-current" : "fill-none"
+          )} />
+        </button>
+        <button
+          onClick={() => handleFeedback('down')}
+          disabled={feedback !== null && !showFeedbackInput}
+          className={cn(
+            "p-1 rounded hover:bg-white/10 transition-colors",
+            feedback === 'down' && "text-red-500"
+          )}
+        >
+          <ThumbsDown className={cn(
+            "h-4 w-4",
+            feedback === 'down' ? "fill-current" : "fill-none"
+          )} />
+        </button>
+      </div>
+
+      {showFeedbackInput && (
+        <div className="flex gap-2">
+          <Input
+            value={feedbackNote}
+            onChange={(e) => setFeedbackNote(e.target.value)}
+            placeholder="What could be improved?"
+            className="flex-1"
+          />
+          <Button
+            onClick={handleSubmitNote}
+            disabled={!feedbackNote.trim()}
+          >
+            Submit
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setShowFeedbackInput(false);
+              setFeedback(null);
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Add these example prompts near the top of the file
+const EXAMPLE_PROMPTS = [
+    {
+        category: "Technical Analysis",
+        prompts: [
+            "Show me the technical indicators for AAPL",
+            "What are the key support and resistance levels for TSLA?",
+            "Analyze the moving averages for MSFT",
+            "What's the RSI and MACD showing for NVDA?",
+        ]
+    },
+    {
+        category: "Options Analysis",
+        prompts: [
+            "What's the unusual options activity in AMD?",
+            "Show me high-volume call options for META",
+            "Analyze put/call ratio for AMZN",
+            "What are the most active strike prices for SPY?",
+        ]
+    },
+    {
+        category: "Market Sentiment",
+        prompts: [
+            "What's the current market sentiment for GOOGL?",
+            "How is institutional trading affecting NFLX?",
+            "Show me the insider trading activity for COIN",
+            "What's the short interest in GME?",
+        ]
+    },
+    {
+        category: "Fundamental Analysis",
+        prompts: [
+            "Compare the P/E ratios of AAPL and MSFT",
+            "What's the revenue growth of AMZN?",
+            "Show me the profit margins for TSLA",
+            "Analyze the cash flow of META",
+        ]
+    }
+];
+
+export default function StockGPT() {
     const router = useRouter();
-    const searchParams = useSearchParams();
+    const searchParams = useSearchParams()
     const [messages, setMessages] = useState<ConversationMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -906,7 +1288,7 @@ function StockGPTContent() {
         
         try {
             const response = await queryAI(titlePrompt);
-            return response.trim();
+            return response.answer.trim();
         } catch (error) {
             console.error('Failed to generate title:', error);
             return 'New Chat';
@@ -927,8 +1309,9 @@ function StockGPTContent() {
     };
 
     const addMessage = (type: ConversationMessage['type'], content: string, data?: Partial<StockData>) => {
-        console.log('Adding message:', { type, content, data }); // Debug log
+        const messageId = crypto.randomUUID();
         setMessages(prev => [...prev, {
+            id: messageId,
             type,
             content,
             timestamp: new Date(),
@@ -991,6 +1374,7 @@ function StockGPTContent() {
                     setMessages(prev => [
                         ...prev.slice(0, -1),
                         {
+                            id: crypto.randomUUID(),
                             type: 'data' as const,
                             content: `Here are the key metrics for ${ticker}:`,
                             timestamp: new Date(),
@@ -1007,6 +1391,7 @@ function StockGPTContent() {
                             ticker: ticker.toUpperCase()
                         },
                         {
+                            id: crypto.randomUUID(),
                             type: 'system' as const,
                             content: response.data.analysis,
                             timestamp: new Date(),
@@ -1031,6 +1416,7 @@ function StockGPTContent() {
         }
     };
 
+    // Update handleSubmit function
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!input.trim() || isLoading) return;
@@ -1038,35 +1424,65 @@ function StockGPTContent() {
         try {
             setIsLoading(true);
             addMessage('user', input);
+
+            // Get the stock data
+            const response = await queryAI(input);
             
-            // Query AI for intent analysis
-            const aiResponse = await queryAI(input);
-            const parsed = parseAIResponse(aiResponse);
-            
-            if (parsed.function === 'unknown') {
-                addMessage('error', 'I could not understand your query. Please try again with a specific stock symbol.');
-                return;
+            if (!response?.success || !response?.data) {
+                throw new Error(response?.message || 'Failed to analyze stock');
             }
-            
-            // Handle different functions
-            switch (parsed.function) {
-                case 'options':
-                    await fetchOptionsData(parsed.ticker);
-                    break;
-                case 'price':
-                    await fetchPriceData(parsed.ticker);
-                    break;
-                case 'analyze':
-                    await analyzeStock(parsed.ticker);
-                    break;
-                default:
-                    await analyzeStock(parsed.ticker);
-            }
+
+            // Add the response to messages
+            addMessage('data', '', {
+                ticker: response.data.ticker || 'UNKNOWN',
+                price: {
+                    current: response.data.price?.current || 0,
+                    previousClose: response.data.price?.current || 0,
+                    dayRange: { low: 0, high: 0 },
+                    fiftyTwoWeek: { low: 0, high: 0 },
+                    fiftyDayMA: response.data.technicalLevels?.fiftyDayMA || 0,
+                    twoHundredDayMA: response.data.technicalLevels?.twoHundredDayMA || 0
+                },
+                changes: {
+                    daily: response.data.changes?.daily || '0%',
+                    momentum: 'N/A',
+                    trendStrength: 'N/A'
+                },
+                tradingData: {
+                    volume: 0,
+                    avgVolume: 0,
+                    volumeRatio: 1
+                },
+                technicalLevels: response.data.technicalLevels || {
+                    fiftyDayMA: 0,
+                    twoHundredDayMA: 0,
+                    support: 0,
+                    resistance: 0
+                },
+                valuationMetrics: {
+                    marketCap: 0,
+                    peRatio: 0,
+                    forwardPE: 0
+                },
+                options: response.data.options ? {
+                    putCallRatio: response.data.options.putCallRatio || 0,
+                    callVolume: response.data.options.callVolume || 0,
+                    putVolume: response.data.options.putVolume || 0,
+                    unusualStrikes: {
+                        calls: response.data.options.unusualStrikes?.calls || [],
+                        puts: response.data.options.unusualStrikes?.puts || []
+                    }
+                } : undefined
+            });
+
+            // Add the final analysis
+            addMessage('system', response.answer || 'Analysis complete');
             
             setInput('');
         } catch (error) {
             console.error('Error:', error);
-            addMessage('error', 'An error occurred while processing your request.');
+            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+            addMessage('error', `Error: ${errorMessage}`);
         } finally {
             setIsLoading(false);
         }
@@ -1249,151 +1665,212 @@ function StockGPTContent() {
         loadChatHistory();
     }, [searchParams]); // Run when URL params change
 
+    // Add this inside the StockGPT component, near other event handlers
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSubmit(e);
+      }
+    };
+
     return (
-        <div className="flex flex-col h-full fixed inset-0 pt-14 bg-background">
-            {/* Messages Area - Only this should scroll */}
-            <div className="flex-1 overflow-y-auto min-h-0">
-                <div className="p-2 md:p-4">
-                    <div className="max-w-3xl mx-auto space-y-4 md:space-y-6">
-                        {messages.length === 0 ? (
-                            // Welcome message when chat is empty
-                            <div className="h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center">
-                                <h1 className="text-4xl font-bold text-muted-foreground mb-4">
-                                    StockGPT
-                                </h1>
-                                <p className="text-xl text-muted-foreground">
-                                    Ask about any stock to get started
-                                </p>
-                            </div>
-                        ) : (
-                            // Regular messages when chat has content
-                            messages.map((message, index) => (
-                                <div
-                                    key={index}
-                                    className={cn(
-                                        "flex",
-                                        message.type === 'user' ? "justify-end" : "justify-start"
-                                    )}
-                                >
-                                    <div
-                                        className={cn(
-                                            "max-w-[95%] md:max-w-[90%] rounded-lg px-3 py-2 md:px-4 md:py-3",
-                                            message.type === 'user'
-                                                ? "bg-primary text-primary-foreground"
-                                                : "bg-muted text-foreground"
-                                        )}
-                                    >
-                                        <AnimatedMessage 
-                                            content={message.content} 
-                                            isNew={index === messages.length - 1 && message.type !== 'user'} 
-                                        />
-                                        {message.type === 'data' && message.data && (
-                                            <div className="mt-4 md:mt-6 space-y-4">
-                                                <StockDataDisplay 
-                                                    data={message.data as StockData} 
-                                                    symbol={message.data.ticker || currentTicker} 
+        <PageTemplate
+            title=""
+            description=""
+        >
+            <InputContext.Provider value={[input, setInput]}>
+                <div className="flex flex-col h-full fixed inset-0 pt-14 bg-background">
+                    {/* Messages Area - Only this should scroll */}
+                    <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                        <div className="p-4 md:p-6">
+                            <div className="max-w-4xl mx-auto space-y-6">
+                                {messages.length === 0 ? (
+                                    <div className="h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center px-4">
+                                        {/* Title Section */}
+                                        <div className="mb-12">
+                                            <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
+                                                StocX
+                                            </h1>
+                                            <p className="text-xl text-white/70">
+                                                Powered by AI market analysis
+                                            </p>
+                                        </div>
+
+                                        {/* Scrolling Pills */}
+                                        <div className="w-full max-w-3xl mb-8 overflow-hidden relative">
+                                            <div className="absolute left-0 w-20 h-full bg-gradient-to-r from-background to-transparent z-10" />
+                                            <div className="absolute right-0 w-20 h-full bg-gradient-to-l from-background to-transparent z-10" />
+                                            
+                                            {/* First set of scrolling items */}
+                                            <div className="flex gap-2 animate-scroll-x">
+                                                {[...EXAMPLE_PROMPTS.flatMap(section => section.prompts), ...EXAMPLE_PROMPTS.flatMap(section => section.prompts)].map((prompt, index) => (
+                                                    <button
+                                                        key={`${index}-first`}
+                                                        onClick={() => setInput(prompt)}
+                                                        className="flex-none px-4 py-2 rounded-full bg-white/5 border border-white/10 
+                                                                 hover:bg-white/10 transition-colors duration-200 
+                                                                 text-white/70 hover:text-white/90 text-sm whitespace-nowrap"
+                                                    >
+                                                        {prompt}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Centered Search Bar */}
+                                        <div className="w-full max-w-2xl">
+                                            <div className="relative">
+                                                <Input
+                                                    value={input}
+                                                    onChange={(e) => setInput(e.target.value)}
+                                                    onKeyDown={handleKeyDown}
+                                                    placeholder="Ask about any stock... e.g., 'Analyze AAPL'"
+                                                    className="bg-white/5 border-white/10 text-white/90 placeholder:text-white/50 
+                                                             rounded-2xl h-16 px-6 pr-20 transition-all duration-200 
+                                                             hover:bg-white/10 text-lg"
                                                 />
-                                                {message.content.includes('**') && (
-                                                    <Recommendations content={message.content} />
+                                                <Button
+                                                    onClick={handleSubmit}
+                                                    disabled={isLoading || !input.trim()}
+                                                    className="absolute right-2 top-2 h-12 w-12 rounded-xl bg-primary 
+                                                             hover:bg-primary/90 transition-all duration-200"
+                                                >
+                                                    {isLoading ? (
+                                                        <Loader2 className="h-6 w-6 animate-spin" />
+                                                    ) : (
+                                                        <Send className="h-6 w-6" />
+                                                    )}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    // Regular messages when chat has content
+                                    messages.map((message, index) => (
+                                        <div
+                                            key={message.id}
+                                            className={cn(
+                                                "flex animate-message-in opacity-0",
+                                                message.type === 'user' ? "justify-end" : "justify-start"
+                                            )}
+                                            style={{
+                                                animationDelay: `${index * 100}ms`
+                                            }}
+                                        >
+                                            <div
+                                                className={cn(
+                                                    "max-w-[95%] md:max-w-[85%] rounded-2xl px-5 py-4 transition-all duration-200 hover:scale-[1.01]",
+                                                    message.type === 'user'
+                                                        ? "bg-primary text-primary-foreground"
+                                                        : "bg-card text-card-foreground border border-white/5"
+                                                )}
+                                            >
+                                                <AnimatedMessage 
+                                                    content={message.content} 
+                                                    isNew={index === messages.length - 1 && message.type !== 'user'} 
+                                                    type={message.type}
+                                                />
+                                                {message.type === 'data' && message.data && (
+                                                    <div className="mt-6 space-y-4 bg-background/40 p-5 rounded-xl backdrop-blur-sm border border-white/5 transition-all duration-200 hover:bg-background/50">
+                                                        <StockDataDisplay 
+                                                            data={message.data as any}
+                                                            analysis={{ intent: message.intent || 'unknown' }}
+                                                        />
+                                                    </div>
+                                                )}
+                                                {message.type === 'system' && (
+                                                    <div className="mt-4">
+                                                        <FeedbackButtons 
+                                                            messageId={message.id}
+                                                            question={messages[index - 2]?.content || ''} 
+                                                            answer={message.content}
+                                                        />
+                                                    </div>
                                                 )}
                                             </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))
-                        )}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
 
-            {/* Input Area - Updated background */}
-            <div className="bg-background p-2 md:p-4">
-                <div className="max-w-3xl mx-auto space-y-2 md:space-y-4">
-                    {currentTicker && (
-                        <div className="mb-2 md:mb-4 overflow-x-auto">
-                            <SimilarTickers 
-                                tickers={similarTickers} 
-                                onAnalyze={analyzeStock} 
-                            />
+                    {/* Input Area - Fixed at bottom */}
+                    {messages.length > 0 && (
+                        <div className="bg-background/80 backdrop-blur-lg border-t border-white/5 p-4 md:p-6">
+                            <div className="max-w-4xl mx-auto space-y-4">
+                                {currentTicker && (
+                                    <div className="mb-4 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                                        <SimilarTickers 
+                                            tickers={similarTickers} 
+                                            onAnalyze={analyzeStock} 
+                                        />
+                                    </div>
+                                )}
+
+                                <form onSubmit={handleSubmit} className="flex gap-3">
+                                    <Input
+                                        type="text"
+                                        value={input}
+                                        onChange={(e) => setInput(e.target.value)}
+                                        placeholder="Ask about a stock..."
+                                        disabled={isLoading}
+                                        className="flex-1 text-base rounded-2xl h-14 px-6 bg-white/5 border-white/10"
+                                    />
+                                    <Button 
+                                        type="submit" 
+                                        disabled={isLoading || !input.trim()} 
+                                        className="h-14 w-14 rounded-xl"
+                                    >
+                                        {isLoading ? (
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                        ) : (
+                                            <Send className="h-5 w-5" />
+                                        )}
+                                    </Button>
+                                </form>
+                            </div>
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="flex gap-2">
-                        <Input
-                            type="text"
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            placeholder="Ask about a stock..."
-                            disabled={isLoading}
-                            className="flex-1 text-sm md:text-base"
-                        />
-                        <Button 
-                            type="submit" 
-                            disabled={isLoading || !input.trim()} 
-                            size="icon"
-                            className="shrink-0"
-                        >
-                            {isLoading ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <Send className="h-4 w-4" />
-                            )}
-                        </Button>
-                    </form>
-                </div>
-            </div>
+                    {/* News Panel Overlay */}
+                    {showNews && currentTicker && (
+                        <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-background border-l border-border z-50">
+                            <div className="p-4 border-b border-border flex justify-between items-center">
+                                <h2 className="font-semibold">News for {currentTicker}</h2>
+                                <Button variant="ghost" size="icon" onClick={() => setShowNews(false)}>
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            <div className="p-4 overflow-y-auto h-[calc(100vh-65px)]">
+                                <NewsPanel ticker={currentTicker} />
+                            </div>
+                        </div>
+                    )}
 
-            {/* News Panel Overlay */}
-            {showNews && currentTicker && (
-                <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-background border-l border-border z-50">
-                    <div className="p-4 border-b border-border flex justify-between items-center">
-                        <h2 className="font-semibold">News for {currentTicker}</h2>
-                        <Button variant="ghost" size="icon" onClick={() => setShowNews(false)}>
-                            <X className="h-4 w-4" />
-                        </Button>
-                    </div>
-                    <div className="p-4 overflow-y-auto h-[calc(100vh-65px)]">
-                        <NewsPanel ticker={currentTicker} />
-                    </div>
+                    {/* Fullscreen Chart Modal */}
+                    {showCandlestick && currentTicker && (
+                        <div className="fixed inset-0 bg-black/90 z-50">
+                            <div className="absolute top-4 right-4 z-50">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setShowCandlestick(false)}
+                                    className="bg-white/10 hover:bg-white/20"
+                                >
+                                    <X className="h-4 w-4 text-white" />
+                                </Button>
+                            </div>
+                            <div className="h-full p-4">
+                                <EnhancedTradingViewChart 
+                                    symbol={currentTicker} 
+                                    containerId={`fullscreen-chart`} 
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
-            )}
-
-            {/* Fullscreen Chart Modal */}
-            {showCandlestick && currentTicker && (
-                <div className="fixed inset-0 bg-black/90 z-50">
-                    <div className="absolute top-4 right-4 z-50">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setShowCandlestick(false)}
-                            className="bg-white/10 hover:bg-white/20"
-                        >
-                            <X className="h-4 w-4 text-white" />
-                        </Button>
-                    </div>
-                    <div className="h-full p-4">
-                        <EnhancedTradingViewChart 
-                            symbol={currentTicker} 
-                            containerId={`fullscreen-chart`} 
-                        />
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
-
-// Main component with Suspense wrapper
-export default function StockGPT() {
-    return (
-        <PageTemplate title="" description="">
-            <Suspense fallback={
-                <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                </div>
-            }>
-                <StockGPTContent />
-            </Suspense>
+            </InputContext.Provider>
         </PageTemplate>
     );
 }

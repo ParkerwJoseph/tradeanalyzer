@@ -96,7 +96,7 @@ const PageTemplate = ({ children, title, description }: PageTemplateProps) => {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <div className="font-semibold">StockGPT</div>
+          <div className="font-semibold text-lg">StocX</div>
           <ThemeToggle />
         </div>
       </header>
@@ -126,7 +126,7 @@ const PageTemplate = ({ children, title, description }: PageTemplateProps) => {
             <div className={cn("font-semibold text-lg transition-opacity", 
               isCollapsed ? "opacity-0" : "opacity-100"
             )}>
-              StockGPT
+              StocX
             </div>
             <div className="flex items-center gap-2">
               {mounted && !isCollapsed && (
