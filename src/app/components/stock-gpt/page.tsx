@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, createContext, useContext, memo } from 'react'
+import { useRouter } from 'next/navigation'
 import { Send, X, Moon, Sun, Plus, ChevronLeft, ChevronRight, Loader2, Search, Newspaper, User, Compass, Library, BookmarkIcon, LineChart, Menu, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,7 +12,7 @@ import axios from 'axios'
 import { format } from 'date-fns'
 import PageTemplate from '@/components/layout/PageTemplate'
 import { useTheme } from "next-themes"
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Cookies from 'js-cookie'
 import { trackUserQuestion, logUserActivity, saveConversation, trackTickerSearch} from '@/lib/userStore'
 import { ref, get, set } from 'firebase/database'
@@ -1251,9 +1252,9 @@ const EXAMPLE_PROMPTS = [
     }
 ];
 
-export default function StockGPT() {
+// Main component that receives searchParams as a prop
+const StockGPTContent = () => {
     const router = useRouter();
-    const searchParams = useSearchParams()
     const [messages, setMessages] = useState<ConversationMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -1265,13 +1266,12 @@ export default function StockGPT() {
     const [currentChatId, setCurrentChatId] = useState<string | null>(null);
     const [showSidebar, setShowSidebar] = useState(false);
     const [showNews, setShowNews] = useState(false);
-    const [navigationItems, setNavigationItems] = useState([
+    const [navigationItems] = useState([
         { label: 'Home', path: '/' },
         { label: 'Stock Analysis', path: '/stock-analysis' },
         { label: 'Stock News', path: '/stock-news' },
         { label: 'Settings', path: '/settings' }
     ]);
-    const [pathname, setPathname] = useState('/');
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
     const [similarTickers, setSimilarTickers] = useState<SimilarTicker[]>([]);
@@ -1609,62 +1609,6 @@ export default function StockGPT() {
         }
     }, []); // Run once on component mount
 
-    useEffect(() => {
-        const loadChatHistory = async () => {
-            const chatId = searchParams.get('chat')
-            if (!chatId) return;
-
-            try {
-                const uid = Cookies.get('uid');
-                if (!uid) {
-                    console.error('No UID found in cookies');
-                    addMessage('error', 'Please log in to view conversation history');
-                    return;
-                }
-
-                // First try to get the conversation directly from Firebase
-                const conversationsRef = ref(database, `users/${uid}/conversations/${chatId}`);
-                const snapshot = await get(conversationsRef);
-                
-                if (!snapshot.exists()) {
-                    throw new Error('Conversation not found');
-                }
-
-                const conversation = snapshot.val();
-                
-                if (!conversation || !conversation.messages) {
-                    throw new Error('Invalid conversation data');
-                }
-
-                // Convert messages object to array if needed
-                const messages = Array.isArray(conversation.messages) 
-                    ? conversation.messages 
-                    : Object.values(conversation.messages);
-
-                setMessages(messages);
-                setCurrentChatId(chatId);
-                
-                // Find last message with ticker
-                const lastDataMessage = [...messages]
-                    .reverse()
-                    .find(msg => msg.ticker);
-                
-                if (lastDataMessage?.ticker) {
-                    setCurrentTicker(lastDataMessage.ticker);
-                }
-
-            } catch (error) {
-                console.error('Error loading conversation:', error);
-                const errorMessage = error instanceof Error 
-                    ? error.message 
-                    : 'An unexpected error occurred';
-                addMessage('error', `Failed to load conversation history: ${errorMessage}`);
-            }
-        };
-
-        loadChatHistory();
-    }, [searchParams]); // Run when URL params change
-
     // Add this inside the StockGPT component, near other event handlers
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -1674,204 +1618,199 @@ export default function StockGPT() {
     };
 
     return (
-        <PageTemplate
-            title=""
-            description=""
-        >
-            <InputContext.Provider value={[input, setInput]}>
-                <div className="flex flex-col h-full fixed inset-0 pt-14 bg-background">
-                    {/* Messages Area - Only this should scroll */}
-                    <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
-                        <div className="p-4 md:p-6">
-                            <div className="max-w-4xl mx-auto space-y-6">
-                                {messages.length === 0 ? (
-                                    <div className="h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center px-4">
-                                        {/* Title Section */}
-                                        <div className="mb-12">
-                                            <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
-                                                StocX
-                                            </h1>
-                                            <p className="text-xl text-white/70">
-                                                Powered by AI market analysis
-                                            </p>
-                                        </div>
+    <PageTemplate title="" description=''>
+        <div className="flex flex-col h-full fixed inset-0 pt-14 bg-background">
+            {/* Messages Area - Only this should scroll */}
+            <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                <div className="p-4 md:p-6">
+                    <div className="max-w-4xl mx-auto space-y-6">
+                        {messages.length === 0 ? (
+                            <div className="h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center px-4">
+                                {/* Title Section */}
+                                <div className="mb-12">
+                                    <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
+                                        StocX
+                                    </h1>
+                                    <p className="text-xl text-white/70">
+                                        Powered by AI market analysis
+                                    </p>
+                                </div>
 
-                                        {/* Scrolling Pills */}
-                                        <div className="w-full max-w-3xl mb-8 overflow-hidden relative">
-                                            <div className="absolute left-0 w-20 h-full bg-gradient-to-r from-background to-transparent z-10" />
-                                            <div className="absolute right-0 w-20 h-full bg-gradient-to-l from-background to-transparent z-10" />
-                                            
-                                            {/* First set of scrolling items */}
-                                            <div className="flex gap-2 animate-scroll-x">
-                                                {[...EXAMPLE_PROMPTS.flatMap(section => section.prompts), ...EXAMPLE_PROMPTS.flatMap(section => section.prompts)].map((prompt, index) => (
-                                                    <button
-                                                        key={`${index}-first`}
-                                                        onClick={() => setInput(prompt)}
-                                                        className="flex-none px-4 py-2 rounded-full bg-white/5 border border-white/10 
-                                                                 hover:bg-white/10 transition-colors duration-200 
-                                                                 text-white/70 hover:text-white/90 text-sm whitespace-nowrap"
-                                                    >
-                                                        {prompt}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {/* Centered Search Bar */}
-                                        <div className="w-full max-w-2xl">
-                                            <div className="relative">
-                                                <Input
-                                                    value={input}
-                                                    onChange={(e) => setInput(e.target.value)}
-                                                    onKeyDown={handleKeyDown}
-                                                    placeholder="Ask about any stock... e.g., 'Analyze AAPL'"
-                                                    className="bg-white/5 border-white/10 text-white/90 placeholder:text-white/50 
-                                                             rounded-2xl h-16 px-6 pr-20 transition-all duration-200 
-                                                             hover:bg-white/10 text-lg"
-                                                />
-                                                <Button
-                                                    onClick={handleSubmit}
-                                                    disabled={isLoading || !input.trim()}
-                                                    className="absolute right-2 top-2 h-12 w-12 rounded-xl bg-primary 
-                                                             hover:bg-primary/90 transition-all duration-200"
-                                                >
-                                                    {isLoading ? (
-                                                        <Loader2 className="h-6 w-6 animate-spin" />
-                                                    ) : (
-                                                        <Send className="h-6 w-6" />
-                                                    )}
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    // Regular messages when chat has content
-                                    messages.map((message, index) => (
-                                        <div
-                                            key={message.id}
-                                            className={cn(
-                                                "flex animate-message-in opacity-0",
-                                                message.type === 'user' ? "justify-end" : "justify-start"
-                                            )}
-                                            style={{
-                                                animationDelay: `${index * 100}ms`
-                                            }}
-                                        >
-                                            <div
-                                                className={cn(
-                                                    "max-w-[95%] md:max-w-[85%] rounded-2xl px-5 py-4 transition-all duration-200 hover:scale-[1.01]",
-                                                    message.type === 'user'
-                                                        ? "bg-primary text-primary-foreground"
-                                                        : "bg-card text-card-foreground border border-white/5"
-                                                )}
+                                {/* Scrolling Pills */}
+                                <div className="w-full max-w-3xl mb-8 overflow-hidden relative">
+                                    <div className="absolute left-0 w-20 h-full bg-gradient-to-r from-background to-transparent z-10" />
+                                    <div className="absolute right-0 w-20 h-full bg-gradient-to-l from-background to-transparent z-10" />
+                                    
+                                    {/* First set of scrolling items */}
+                                    <div className="flex gap-2 animate-scroll-x">
+                                        {[...EXAMPLE_PROMPTS.flatMap(section => section.prompts), ...EXAMPLE_PROMPTS.flatMap(section => section.prompts)].map((prompt, index) => (
+                                            <button
+                                                key={`${index}-first`}
+                                                onClick={() => setInput(prompt)}
+                                                className="flex-none px-4 py-2 rounded-full bg-white/5 border border-white/10 
+                                                                     hover:bg-white/10 transition-colors duration-200 
+                                                                     text-white/70 hover:text-white/90 text-sm whitespace-nowrap"
                                             >
-                                                <AnimatedMessage 
-                                                    content={message.content} 
-                                                    isNew={index === messages.length - 1 && message.type !== 'user'} 
-                                                    type={message.type}
-                                                />
-                                                {message.type === 'data' && message.data && (
-                                                    <div className="mt-6 space-y-4 bg-background/40 p-5 rounded-xl backdrop-blur-sm border border-white/5 transition-all duration-200 hover:bg-background/50">
-                                                        <StockDataDisplay 
-                                                            data={message.data as any}
-                                                            analysis={{ intent: message.intent || 'unknown' }}
-                                                        />
-                                                    </div>
-                                                )}
-                                                {message.type === 'system' && (
-                                                    <div className="mt-4">
-                                                        <FeedbackButtons 
-                                                            messageId={message.id}
-                                                            question={messages[index - 2]?.content || ''} 
-                                                            answer={message.content}
-                                                        />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Input Area - Fixed at bottom */}
-                    {messages.length > 0 && (
-                        <div className="bg-background/80 backdrop-blur-lg border-t border-white/5 p-4 md:p-6">
-                            <div className="max-w-4xl mx-auto space-y-4">
-                                {currentTicker && (
-                                    <div className="mb-4 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
-                                        <SimilarTickers 
-                                            tickers={similarTickers} 
-                                            onAnalyze={analyzeStock} 
-                                        />
+                                                {prompt}
+                                            </button>
+                                        ))}
                                     </div>
-                                )}
+                                </div>
 
-                                <form onSubmit={handleSubmit} className="flex gap-3">
-                                    <Input
-                                        type="text"
-                                        value={input}
-                                        onChange={(e) => setInput(e.target.value)}
-                                        placeholder="Ask about a stock..."
-                                        disabled={isLoading}
-                                        className="flex-1 text-base rounded-2xl h-14 px-6 bg-white/5 border-white/10"
-                                    />
-                                    <Button 
-                                        type="submit" 
-                                        disabled={isLoading || !input.trim()} 
-                                        className="h-14 w-14 rounded-xl"
-                                    >
-                                        {isLoading ? (
-                                            <Loader2 className="h-5 w-5 animate-spin" />
-                                        ) : (
-                                            <Send className="h-5 w-5" />
-                                        )}
-                                    </Button>
-                                </form>
+                                {/* Centered Search Bar */}
+                                <div className="w-full max-w-2xl">
+                                    <div className="relative">
+                                        <Input
+                                            value={input}
+                                            onChange={(e) => setInput(e.target.value)}
+                                            onKeyDown={handleKeyDown}
+                                            placeholder="Ask about any stock... e.g., 'Analyze AAPL'"
+                                            className="bg-white/5 border-white/10 text-white/90 placeholder:text-white/50 
+                                                                 rounded-2xl h-16 px-6 pr-20 transition-all duration-200 
+                                                                 hover:bg-white/10 text-lg"
+                                        />
+                                        <Button
+                                            onClick={handleSubmit}
+                                            disabled={isLoading || !input.trim()}
+                                            className="absolute right-2 top-2 h-12 w-12 rounded-xl bg-primary 
+                                                                 hover:bg-primary/90 transition-all duration-200"
+                                        >
+                                            {isLoading ? (
+                                                <Loader2 className="h-6 w-6 animate-spin" />
+                                            ) : (
+                                                <Send className="h-6 w-6" />
+                                            )}
+                                        </Button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    )}
-
-                    {/* News Panel Overlay */}
-                    {showNews && currentTicker && (
-                        <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-background border-l border-border z-50">
-                            <div className="p-4 border-b border-border flex justify-between items-center">
-                                <h2 className="font-semibold">News for {currentTicker}</h2>
-                                <Button variant="ghost" size="icon" onClick={() => setShowNews(false)}>
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            </div>
-                            <div className="p-4 overflow-y-auto h-[calc(100vh-65px)]">
-                                <NewsPanel ticker={currentTicker} />
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Fullscreen Chart Modal */}
-                    {showCandlestick && currentTicker && (
-                        <div className="fixed inset-0 bg-black/90 z-50">
-                            <div className="absolute top-4 right-4 z-50">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setShowCandlestick(false)}
-                                    className="bg-white/10 hover:bg-white/20"
+                        ) : (
+                            // Regular messages when chat has content
+                            messages.map((message, index) => (
+                                <div
+                                    key={message.id}
+                                    className={cn(
+                                        "flex animate-message-in opacity-0",
+                                        message.type === 'user' ? "justify-end" : "justify-start"
+                                    )}
+                                    style={{
+                                        animationDelay: `${index * 100}ms`
+                                    }}
                                 >
-                                    <X className="h-4 w-4 text-white" />
-                                </Button>
-                            </div>
-                            <div className="h-full p-4">
-                                <EnhancedTradingViewChart 
-                                    symbol={currentTicker} 
-                                    containerId={`fullscreen-chart`} 
+                                    <div
+                                        className={cn(
+                                            "max-w-[95%] md:max-w-[85%] rounded-2xl px-5 py-4 transition-all duration-200 hover:scale-[1.01]",
+                                            message.type === 'user'
+                                                ? "bg-primary text-primary-foreground"
+                                                : "bg-card text-card-foreground border border-white/5"
+                                        )}
+                                    >
+                                        <AnimatedMessage 
+                                            content={message.content} 
+                                            isNew={index === messages.length - 1 && message.type !== 'user'} 
+                                            type={message.type}
+                                        />
+                                        {message.type === 'data' && message.data && (
+                                            <div className="mt-6 space-y-4 bg-background/40 p-5 rounded-xl backdrop-blur-sm border border-white/5 transition-all duration-200 hover:bg-background/50">
+                                                <StockDataDisplay 
+                                                    data={message.data as any}
+                                                    analysis={{ intent: message.intent || 'unknown' }}
+                                                />
+                                            </div>
+                                        )}
+                                        {message.type === 'system' && (
+                                            <div className="mt-4">
+                                                <FeedbackButtons 
+                                                    messageId={message.id}
+                                                    question={messages[index - 2]?.content || ''} 
+                                                    answer={message.content}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Input Area - Fixed at bottom */}
+            {messages.length > 0 && (
+                <div className="bg-background/80 backdrop-blur-lg border-t border-white/5 p-4 md:p-6">
+                    <div className="max-w-4xl mx-auto space-y-4">
+                        {currentTicker && (
+                            <div className="mb-4 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                                <SimilarTickers 
+                                    tickers={similarTickers} 
+                                    onAnalyze={analyzeStock} 
                                 />
                             </div>
-                        </div>
-                    )}
+                        )}
+
+                        <form onSubmit={handleSubmit} className="flex gap-3">
+                            <Input
+                                type="text"
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                placeholder="Ask about a stock..."
+                                disabled={isLoading}
+                                className="flex-1 text-base rounded-2xl h-14 px-6 bg-white/5 border-white/10"
+                            />
+                            <Button 
+                                type="submit" 
+                                disabled={isLoading || !input.trim()} 
+                                className="h-14 w-14 rounded-xl"
+                            >
+                                {isLoading ? (
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                ) : (
+                                    <Send className="h-5 w-5" />
+                                )}
+                            </Button>
+                        </form>
+                    </div>
                 </div>
-            </InputContext.Provider>
-        </PageTemplate>
+            )}
+
+            {/* News Panel Overlay */}
+            {showNews && currentTicker && (
+                <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-background border-l border-border z-50">
+                    <div className="p-4 border-b border-border flex justify-between items-center">
+                        <h2 className="font-semibold">News for {currentTicker}</h2>
+                        <Button variant="ghost" size="icon" onClick={() => setShowNews(false)}>
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                    <div className="p-4 overflow-y-auto h-[calc(100vh-65px)]">
+                        <NewsPanel ticker={currentTicker} />
+                    </div>
+                </div>
+            )}
+
+            {/* Fullscreen Chart Modal */}
+            {showCandlestick && currentTicker && (
+                <div className="fixed inset-0 bg-black/90 z-50">
+                    <div className="absolute top-4 right-4 z-50">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setShowCandlestick(false)}
+                            className="bg-white/10 hover:bg-white/20"
+                        >
+                            <X className="h-4 w-4 text-white" />
+                        </Button>
+                    </div>
+                    <div className="h-full p-4">
+                        <EnhancedTradingViewChart 
+                            symbol={currentTicker} 
+                            containerId={`fullscreen-chart`} 
+                        />
+                    </div>
+                </div>
+            )}
+        </div>
+    </PageTemplate>
     );
 }
 
@@ -1904,3 +1843,8 @@ const CustomTooltip = ({ active, payload }: any) => {
     }
     return null;
 };
+
+// Export a wrapped version of the component
+export default function StockGPT() {
+    return <StockGPTContent />;
+}
