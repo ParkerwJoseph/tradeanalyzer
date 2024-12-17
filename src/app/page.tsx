@@ -953,6 +953,11 @@ interface StockAnalysisResponse {
     ticker: string;
     price: { current: number };
     changes: { daily: string };
+    tradingData?: {
+      volume: number;
+      avgVolume: number;
+      volumeRatio: number;
+    };
     options?: {
       putCallRatio: number;
       callVolume: number;
@@ -1228,7 +1233,8 @@ const EXAMPLE_PROMPTS = [
 // Add this at the top with other utility functions
 const generateId = (() => {
     let counter = 0;
-    return (prefix: string = 'msg') => `${prefix}_${Date.now()}_${counter++}`;
+    const prefix = Math.random().toString(36).substring(2, 9);
+    return (type: string = 'msg') => `${type}_${prefix}_${counter++}`;
 })();
 
 // Main component that receives searchParams as a prop
@@ -1408,15 +1414,26 @@ const StockGPTContent = () => {
             
             if (response.data) {
                 const stockData: Partial<StockData> = {
-                    ...response.data,
+                    ticker: response.data.ticker || 'UNKNOWN',
                     price: {
-                        ...response.data.price,
-                        previousClose: response.data.price.current
+                        current: response.data.price?.current || 0,
+                        previousClose: response.data.price?.current || 0
                     },
                     changes: {
-                        ...response.data.changes,
+                        daily: response.data.changes?.daily || '0%',
                         momentum: 'N/A',
                         trendStrength: 'N/A'
+                    },
+                    technicalLevels: {
+                        fiftyDayMA: response.data.technicalLevels?.fiftyDayMA || 0,
+                        twoHundredDayMA: response.data.technicalLevels?.twoHundredDayMA || 0,
+                        support: response.data.technicalLevels?.support || 0,
+                        resistance: response.data.technicalLevels?.resistance || 0
+                    },
+                    tradingData: {
+                        volume: response.data.tradingData?.volume || 0,
+                        avgVolume: response.data.tradingData?.avgVolume || 0,
+                        volumeRatio: response.data.tradingData?.volumeRatio || 1
                     }
                 };
                 addMessage('data', '', stockData);
