@@ -19,74 +19,97 @@ interface RiskMetrics {
 
 const SYSTEM_PROMPT = "You are a professional trading analyst. "
 
-const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
-
-// Initialize OpenAI client only if API key exists
-const openai = typeof window !== 'undefined' && apiKey ? new OpenAI({
-  apiKey: apiKey,
-  dangerouslyAllowBrowser: true
-}) : null;
+// Initialize OpenAI client with error handling
+const initializeOpenAI = () => {
+  try {
+    const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OpenAI API key is not configured');
+    }
+    return new OpenAI({
+      apiKey: apiKey,
+      dangerouslyAllowBrowser: true
+    });
+  } catch (error) {
+    console.error('Failed to initialize OpenAI client:', error);
+    return null;
+  }
+};
 
 const queryAI = async (prompt: string): Promise<string> => {
+  const openai = initializeOpenAI();
   if (!openai) {
-    throw new Error('client is not initialized.');
+    throw new Error('OpenAI client is not initialized. Please check your API key configuration.');
   }
   
-  const completion = await openai.chat.completions.create({
-    messages: [
-      { role: "system", content: `You are a professional trading analyst. 
-        Analyze trading patterns using these specific criteria:
+  try {
+    const completion = await openai.chat.completions.create({
+      messages: [
+        { role: "system", content: `You are a professional trading analyst. 
+          Analyze trading patterns using these specific criteria:
 
-        1. Aggressive Trading Indicators (Score 8-10):
-           * Heavy usage of 3x leveraged ETFs (>20% of trades):
-             - Bull ETFs: TQQQ, UPRO, SPXL, UDOW
-             - Bear ETFs: SQQQ, SPXS, SDOW
-           * Day trading leveraged ETFs
-           * Switching between bull/bear leveraged ETFs
-           * Position holding < 1 week
-           * Large position sizes (>10% portfolio per trade)
+          1. Aggressive Trading Indicators (Score 8-10):
+             * Heavy usage of 3x leveraged ETFs (>20% of trades):
+               - Bull ETFs: TQQQ, UPRO, SPXL, UDOW
+               - Bear ETFs: SQQQ, SPXS, SDOW
+             * Day trading leveraged ETFs
+             * Switching between bull/bear leveraged ETFs
+             * Position holding < 1 week
+             * Large position sizes (>10% portfolio per trade)
 
-        2. Moderate Trading Indicators (Score 4-7):
-           * Mixed portfolio with some risk:
-             - Occasional leveraged ETF usage (<20% of trades)
-             - Growth stocks (TSLA, NVDA, etc.)
-             - Some options trading
-           * Position holding 1 week to 3 months
-           * Moderate position sizes (5-10% portfolio)
+          2. Moderate Trading Indicators (Score 4-7):
+             * Mixed portfolio with some risk:
+               - Occasional leveraged ETF usage (<20% of trades)
+               - Growth stocks (TSLA, NVDA, etc.)
+               - Some options trading
+             * Position holding 1 week to 3 months
+             * Moderate position sizes (5-10% portfolio)
 
-        3. Conservative Trading Indicators (Score 1-3):
-           * Focus on stable investments:
-             - Dividend stocks (JNJ, PG, KO)
-             - Blue chip stocks
-             - Index funds (SPY, QQQ)
-             - REITs, Utilities
-           * Position holding > 3 months
-           * Smaller position sizes (<5% portfolio)
-           * No leveraged products
+          3. Conservative Trading Indicators (Score 1-3):
+             * Focus on stable investments:
+               - Dividend stocks (JNJ, PG, KO)
+               - Blue chip stocks
+               - Index funds (SPY, QQQ)
+               - REITs, Utilities
+             * Position holding > 3 months
+             * Smaller position sizes (<5% portfolio)
+             * No leveraged products
 
-        Calculate Risk Score:
-        - Start at 5 (neutral)
-        - Add 1-3 points for each aggressive indicator
-        - Subtract 1-3 points for each conservative indicator
-        
-        IMPORTANT: Respond with ONLY this JSON format:
-        {
-          "riskScore": number between 1-10,
-          "riskLevel": "Conservative" or "Moderate" or "Aggressive",
-          "leveragedExposure": "Detailed % of portfolio in leveraged ETFs, specific ETFs used, trading frequency",
-          "dividendExposure": "% of portfolio in dividend stocks, specific stocks, holding periods",
-          "holdingPeriodAnalysis": "Average holding periods for different types of instruments",
-          "instrumentAnalysis": "Breakdown of portfolio by instrument type (%)",
-          "explanation": "Detailed explanation of risk assessment and trading style"
-        }` 
-      },
-      { role: "user", content: prompt }
-    ],
-    model: "gpt-4",
-    temperature: 0.3,
-  })
-  return completion.choices[0].message.content || ''
-}
+          Calculate Risk Score:
+          - Start at 5 (neutral)
+          - Add 1-3 points for each aggressive indicator
+          - Subtract 1-3 points for each conservative indicator
+          
+          IMPORTANT: Respond with ONLY this JSON format:
+          {
+            "riskScore": number between 1-10,
+            "riskLevel": "Conservative" or "Moderate" or "Aggressive",
+            "leveragedExposure": "Detailed % of portfolio in leveraged ETFs, specific ETFs used, trading frequency",
+            "dividendExposure": "% of portfolio in dividend stocks, specific stocks, holding periods",
+            "holdingPeriodAnalysis": "Average holding periods for different types of instruments",
+            "instrumentAnalysis": "Breakdown of portfolio by instrument type (%)",
+            "explanation": "Detailed explanation of risk assessment and trading style"
+          }` 
+        },
+        { role: "user", content: prompt }
+      ],
+      model: "gpt-4",
+      temperature: 0.3,
+    });
+    
+    if (!completion.choices[0]?.message?.content) {
+      throw new Error('No response received from OpenAI');
+    }
+    
+    return completion.choices[0].message.content;
+  } catch (error: any) {
+    console.error('OpenAI API Error:', error);
+    if (error.response?.status === 401) {
+      throw new Error('Invalid API key. Please check your OpenAI API key configuration.');
+    }
+    throw new Error(error.message || 'Failed to analyze question');
+  }
+};
 
 export default function TradingAnalyzer({ userId, onAnalysisComplete }: { 
   userId: string, 
@@ -156,31 +179,32 @@ export default function TradingAnalyzer({ userId, onAnalysisComplete }: {
             throw new Error(`Missing required field: ${field}`)
           }
         }
-      } catch (error) {
-        console.error('Failed to parse AI response:', error)
+
+        const metrics = {
+          riskToleranceScore: analysis.riskScore,
+          riskLevel: analysis.riskLevel as RiskMetrics['riskLevel'],
+          holdingPeriodAnalysis: analysis.holdingPeriodAnalysis,
+          instrumentAnalysis: analysis.instrumentAnalysis,
+          leveragedExposure: analysis.leveragedExposure,
+          dividendExposure: analysis.dividendExposure
+        }
+
+        const userRef = ref(database, `users/${userId}`)
+        await update(userRef, {
+          riskAnalysis: metrics,
+          lastAnalysisDate: new Date().toISOString()
+        })
+
+        onAnalysisComplete(metrics)
+      } catch (parseError) {
+        console.error('Failed to parse AI response:', parseError)
         console.error('Raw response:', response)
         throw new Error('Invalid response format from AI')
       }
-
-      const metrics = {
-        riskToleranceScore: analysis.riskScore,
-        riskLevel: analysis.riskLevel as RiskMetrics['riskLevel'],
-        holdingPeriodAnalysis: analysis.holdingPeriodAnalysis,
-        instrumentAnalysis: analysis.instrumentAnalysis,
-        leveragedExposure: analysis.leveragedExposure,
-        dividendExposure: analysis.dividendExposure
-      }
-
-      const userRef = ref(database, `users/${userId}`)
-      await update(userRef, {
-        riskAnalysis: metrics,
-        lastAnalysisDate: new Date().toISOString()
-      })
-
-      onAnalysisComplete(metrics)
     } catch (err) {
       const error = err as Error
       setError(error.message || 'Error processing file.')
+      console.error('Analysis Error:', error)
     } finally {
       setIsAnalyzing(false)
     }
@@ -194,6 +218,7 @@ export default function TradingAnalyzer({ userId, onAnalysisComplete }: {
             type="file"
             onChange={handleFileUpload}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            accept=".txt,.csv"
             disabled={isAnalyzing}
           />
           <Upload className="mr-2 h-4 w-4" />
