@@ -1003,9 +1003,12 @@ const queryAI = async (input: string): Promise<StockAnalysisResponse> => {
 // Add function to get question analysis
 const getQuestionAnalysis = async (input: string) => {
     try {
-        const response = await axios.post(
-            'https://api.openai.com/v1/chat/completions',
-            {
+        const response = await fetch('/api/analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
                 messages: [{
                     role: "user",
                     content: `Analyze this question about stocks: "${input}"
@@ -1015,23 +1018,30 @@ const getQuestionAnalysis = async (input: string) => {
                         "tickers": string[],
                         "timeframe": "intraday" | "short_term" | "long_term"
                     }`
-                }],
-                model: "gpt-4-turbo-preview",
-                temperature: 0.3,
-                response_format: { type: "json_object" }
-            },
-            {
-                headers: {
-                    'Authorization': `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
+                }]
+            })
+        });
 
-        return JSON.parse(response.data.choices[0].message.content);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to analyze question');
+        }
+
+        // The data is already parsed JSON from our API
+        return result.data;
     } catch (error) {
         console.error('Analysis Error:', error);
-        throw new Error('Failed to analyze question');
+        // Return a default analysis instead of throwing
+        return {
+            intent: "technical",
+            tickers: [],
+            timeframe: "short_term"
+        };
     }
 };
 
