@@ -1,6 +1,6 @@
-'use client'
+'use client';
 
-import { useState, useEffect, useMemo, createContext, useContext, memo } from 'react'
+import React, { useState, useEffect, useMemo, createContext, useContext, memo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Send, X, Moon, Sun, Plus, ChevronLeft, ChevronRight, Loader2, Search, Newspaper, User, Compass, Library, BookmarkIcon, LineChart, Menu, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -977,14 +977,13 @@ interface StockAnalysisResponse {
   message?: string;
 }
 
-// Update the queryAI function
+// Update the queryAI function with better error handling
 const queryAI = async (input: string): Promise<StockAnalysisResponse> => {
   try {
     const response = await axios.post(
       'https://us-central1-shopify-webscraper.cloudfunctions.net/app/askQuestion',
       {
-        question: input,
-        analysis: await getQuestionAnalysis(input)
+        question: input
       },
       {
         headers: {
@@ -993,109 +992,73 @@ const queryAI = async (input: string): Promise<StockAnalysisResponse> => {
       }
     );
 
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to process question');
+    }
+
     return response.data;
   } catch (error) {
     console.error('AI Query Error:', error);
-    throw error;
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+    throw new Error(`Failed to analyze question: ${errorMessage}`);
   }
 };
 
-// Add function to get question analysis
-const getQuestionAnalysis = async (input: string) => {
-    try {
-        const response = await fetch('/api/analyze', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                messages: [{
-                    role: "user",
-                    content: `Analyze this question about stocks: "${input}"
-                    Return a JSON object with:
-                    {
-                        "intent": "sentiment" | "technical" | "price" | "options",
-                        "tickers": string[],
-                        "timeframe": "intraday" | "short_term" | "long_term"
-                    }`
-                }]
-            })
-        });
+// Add helper function to extract tickers from text
+const extractTickersFromText = (text: string): string[] => {
+  const tickerPatterns = [
+    /\$([A-Za-z]{1,5})\b/g,                   // $TICKER format
+    /\b([A-Za-z]{1,5}):([A-Za-z]+)\b/g,       // TICKER:EXCHANGE format
+    /\b(?:of|for|in|about)\s+([A-Za-z]{1,5})\b/gi,  // Common phrases
+  ];
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        
-        if (!result.success) {
-            throw new Error(result.error || 'Failed to analyze question');
-        }
-
-        // The data is already parsed JSON from our API
-        return result.data;
-    } catch (error) {
-        console.error('Analysis Error:', error);
-        // Return a default analysis instead of throwing
-        return {
-            intent: "technical",
-            tickers: [],
-            timeframe: "short_term"
-        };
+  const tickers = new Set<string>();
+  
+  tickerPatterns.forEach(pattern => {
+    const matches = text.matchAll(pattern);
+    for (const match of matches) {
+      if (match[1]) {
+        tickers.add(match[1].toUpperCase());
+      }
     }
+  });
+
+  return Array.from(tickers);
 };
 
-// Update your message rendering to include the new data display
-const renderMessage = (message: ConversationMessage) => {
-  if (message.type === 'data' && message.data) {
-    return (
-      <>
-        <div className="mt-4 md:mt-6 space-y-4 bg-[#0F0F10] p-4 rounded-lg">
-          <StockDataDisplay 
-            data={message.data as unknown as {
-              ticker: string;
-              price: { current: number };
-              changes: { daily: string };
-              options?: {
-                putCallRatio: number;
-                callVolume: number;
-                putVolume: number;
-                unusualStrikes?: {
-                  calls: Array<{
-                    strike: number;
-                    volume: number;
-                    openInterest: number;
-                    impliedVolatility: number;
-                    percentFromPrice: number;
-                  }>;
-                  puts: Array<{
-                    strike: number;
-                    volume: number;
-                    openInterest: number;
-                    impliedVolatility: number;
-                    percentFromPrice: number;
-                  }>;
-                };
-              };
-              technicals?: {
-                rsi: number;
-                macd: { macd: number; signal: number };
-              };
-              technicalLevels?: {
-                fiftyDayMA: number;
-                twoHundredDayMA: number;
-                support: number;
-                resistance: number;
-              };
-            }}
-            analysis={{ intent: message.intent || 'unknown' }}
-          />
-        </div>
-        <div className="mt-4 text-white/90">{message.content}</div>
-      </>
+// Update the getQuestionAnalysis function with better error handling
+const getQuestionAnalysis = async (input: string) => {
+  try {
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        messages: [{
+          role: "user",
+          content: `Analyze this question about stocks: "${input}"
+            Return a JSON object with:
+            1. intent: one of ["sentiment", "technical", "comparison", "volatility", "support_resistance", "dividend", "price_movement", "valuation", "options"]
+            2. tickers: array of stock symbols mentioned
+            3. timeframe: one of ["intraday", "short_term", "medium_term", "long_term"]
+            4. dataPoints: array of specific metrics requested
+            5. analysisDepth: one of ["basic", "detailed", "comprehensive"]`
+        }],
+        model: "gpt-4-turbo-preview",
+        temperature: 0.3,
+        response_format: { type: "json_object" }
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
     );
+
+    return JSON.parse(response.data.choices[0].message.content);
+  } catch (error) {
+    console.error('Analysis Error:', error);
+    throw new Error('Failed to analyze question structure');
   }
-  // ... rest of your message rendering logic
 };
 
 // Add FeedbackType enum at the top of the file with other types
@@ -1262,13 +1225,19 @@ const EXAMPLE_PROMPTS = [
     }
 ];
 
+// Add this at the top with other utility functions
+const generateId = (() => {
+    let counter = 0;
+    return (prefix: string = 'msg') => `${prefix}_${Date.now()}_${counter++}`;
+})();
+
 // Main component that receives searchParams as a prop
 const StockGPTContent = () => {
     const router = useRouter();
     const [messages, setMessages] = useState<ConversationMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [currentTicker, setCurrentTicker] = useState<string>('');
+    const [currentTicker, setCurrentTicker] = useState<string | null>(null);
     const [showCandlestick, setShowCandlestick] = useState(false);
     const [tickerSymbols, setTickerSymbols] = useState<string[]>([]);
     const [error, setError] = useState<string>('');
@@ -1306,7 +1275,7 @@ const StockGPTContent = () => {
     };
 
     const createNewChat = () => {
-        const newChatId = crypto.randomUUID(); // Generate unique ID
+        const newChatId = generateId('chat');
         const newChat: ChatSession = {
             id: newChatId,
             title: 'New Chat',
@@ -1315,18 +1284,18 @@ const StockGPTContent = () => {
         };
         setChatHistory(prev => [...prev, newChat]);
         setCurrentChatId(newChatId);
-        setMessages([]); // Clear current messages
+        setMessages([]);
     };
 
     const addMessage = (type: ConversationMessage['type'], content: string, data?: Partial<StockData>) => {
-        const messageId = crypto.randomUUID();
+        const messageId = generateId('msg');
         setMessages(prev => [...prev, {
             id: messageId,
             type,
             content,
             timestamp: new Date(),
             data,
-            ticker: currentTicker
+            ticker: currentTicker || undefined
         }]);
     };
 
@@ -1384,7 +1353,7 @@ const StockGPTContent = () => {
                     setMessages(prev => [
                         ...prev.slice(0, -1),
                         {
-                            id: crypto.randomUUID(),
+                            id: generateId('data'),
                             type: 'data' as const,
                             content: `Here are the key metrics for ${ticker}:`,
                             timestamp: new Date(),
@@ -1395,13 +1364,13 @@ const StockGPTContent = () => {
                                     ...riskProfile,
                                     riskToleranceScore: technicalRiskScore,
                                     technicalRiskLevel: technicalRiskScore > 7 ? 'High' : 
-                                                      technicalRiskScore > 4 ? 'Medium' : 'Low'
+                                                    technicalRiskScore > 4 ? 'Medium' : 'Low'
                                 }
                             },
                             ticker: ticker.toUpperCase()
                         },
                         {
-                            id: crypto.randomUUID(),
+                            id: generateId('system'),
                             type: 'system' as const,
                             content: response.data.analysis,
                             timestamp: new Date(),
@@ -1435,64 +1404,33 @@ const StockGPTContent = () => {
             setIsLoading(true);
             addMessage('user', input);
 
-            // Get the stock data
             const response = await queryAI(input);
             
-            if (!response?.success || !response?.data) {
-                throw new Error(response?.message || 'Failed to analyze stock');
-            }
-
-            // Add the response to messages
-            addMessage('data', '', {
-                ticker: response.data.ticker || 'UNKNOWN',
-                price: {
-                    current: response.data.price?.current || 0,
-                    previousClose: response.data.price?.current || 0,
-                    dayRange: { low: 0, high: 0 },
-                    fiftyTwoWeek: { low: 0, high: 0 },
-                    fiftyDayMA: response.data.technicalLevels?.fiftyDayMA || 0,
-                    twoHundredDayMA: response.data.technicalLevels?.twoHundredDayMA || 0
-                },
-                changes: {
-                    daily: response.data.changes?.daily || '0%',
-                    momentum: 'N/A',
-                    trendStrength: 'N/A'
-                },
-                tradingData: {
-                    volume: 0,
-                    avgVolume: 0,
-                    volumeRatio: 1
-                },
-                technicalLevels: response.data.technicalLevels || {
-                    fiftyDayMA: 0,
-                    twoHundredDayMA: 0,
-                    support: 0,
-                    resistance: 0
-                },
-                valuationMetrics: {
-                    marketCap: 0,
-                    peRatio: 0,
-                    forwardPE: 0
-                },
-                options: response.data.options ? {
-                    putCallRatio: response.data.options.putCallRatio || 0,
-                    callVolume: response.data.options.callVolume || 0,
-                    putVolume: response.data.options.putVolume || 0,
-                    unusualStrikes: {
-                        calls: response.data.options.unusualStrikes?.calls || [],
-                        puts: response.data.options.unusualStrikes?.puts || []
+            if (response.data) {
+                const stockData: Partial<StockData> = {
+                    ...response.data,
+                    price: {
+                        ...response.data.price,
+                        previousClose: response.data.price.current
+                    },
+                    changes: {
+                        ...response.data.changes,
+                        momentum: 'N/A',
+                        trendStrength: 'N/A'
                     }
-                } : undefined
-            });
-
-            // Add the final analysis
-            addMessage('system', response.answer || 'Analysis complete');
+                };
+                addMessage('data', '', stockData);
+            }
+            
+            if (response.answer) {
+                addMessage('system', response.answer);
+            }
             
             setInput('');
         } catch (error) {
             console.error('Error:', error);
             const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-            addMessage('error', `Error: ${errorMessage}`);
+            addMessage('error', errorMessage);
         } finally {
             setIsLoading(false);
         }
