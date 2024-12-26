@@ -367,7 +367,8 @@ const StockDataDisplay = ({ data, analysis }: {
   },
   analysis: { intent: string }
 }) => {
-  const chartId = generateId('chart');
+  // Use a stable chart ID based on the ticker
+  const chartId = useMemo(() => `chart-${data.ticker}`, [data.ticker]);
 
   return (
     <div className="font-mono whitespace-pre-wrap text-sm space-y-4">
@@ -952,14 +953,14 @@ const SAMPLE_QUESTIONS = [
 // Add this new component
 const ScrollingQuestionss = ({ onQuestionClick }: { onQuestionClick: (question: string) => void }) => {
   return (
-    <div className="relative w-full overflow-hidden py-4 before:absolute before:left-0 before:top-0 before:z-10 before:h-full before:w-20 before:bg-gradient-to-r before:from-background before:to-transparent after:absolute after:right-0 after:top-0 after:z-10 after:h-full after:w-20 after:bg-gradient-to-l after:from-background after:to-transparent">
+    <div className="relative w-full overflow-hidden py-4 before:absolute before:left-0 before:top-0 before:z-10 before:h-full before:w-20 before:from-background before:to-transparent after:absolute after:right-0 after:top-0 after:z-10 after:h-full after:w-20 after:from-background after:to-transparent">
       <div className="animate-scroll flex gap-4 whitespace-nowrap">
         {[...SAMPLE_QUESTIONS, ...SAMPLE_QUESTIONS].map((question, index) => (
           <button
             key={`${question}-${index}`}
             onClick={() => onQuestionClick(question)}
             className="inline-flex px-4 py-2 rounded-full border border-white/10 bg-white/5 
-                     hover:bg-white/10 transition-colors duration-200 text-sm text-white/70 
+                     hover:bg-white/10 transition-colors duration-500 text-sm text-white/70 
                      hover:text-white/90 whitespace-nowrap"
           >
             {question}
