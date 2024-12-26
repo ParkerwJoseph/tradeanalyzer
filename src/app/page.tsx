@@ -132,53 +132,85 @@ const EnhancedTradingViewChart = ({ symbol, containerId }: { symbol: string; con
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const script = document.createElement('script');
-        script.src = 'https://s3.tradingview.com/tv.js';
-        script.async = true;
-        document.head.appendChild(script);
+        let isMounted = true;
+        const formattedSymbol = `${symbol.toUpperCase()}`;
 
+        // Create container if it doesn't exist
+        const container = document.getElementById(containerId);
+        if (!container) {
+            console.error('Container not found:', containerId);
+            return;
+        }
+
+        // Clear existing content
+        container.innerHTML = '';
+
+        // Load TradingView script
+        const script = document.createElement('script');
+        script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+        script.type = 'text/javascript';
+        script.async = true;
+
+        // Configure the widget
+        script.innerHTML = JSON.stringify({
+            "autosize": true,
+            "symbol": formattedSymbol,
+            "interval": "D",
+            "timezone": "exchange",
+            "theme": "dark",
+            "style": "1",
+            "locale": "en",
+            "enable_publishing": false,
+            "backgroundColor": "rgba(10, 10, 10, 1)",
+            "gridColor": "rgba(30, 34, 45, 1)",
+            "hide_top_toolbar": true,
+            "hide_legend": true,
+            "save_image": false,
+            "calendar": false,
+            "hide_volume": false,
+            "support_host": "https://www.tradingview.com",
+            "container_id": containerId,
+            "studies": [
+                "Volume@tv-basicstudies",
+                "BB@tv-basicstudies",
+                "VWAP@tv-basicstudies"
+            ],
+            "overrides": {
+                "mainSeriesProperties.candleStyle.upColor": "#00C805",
+                "mainSeriesProperties.candleStyle.downColor": "#FF3B69",
+                "mainSeriesProperties.candleStyle.borderUpColor": "#00C805",
+                "mainSeriesProperties.candleStyle.borderDownColor": "#FF3B69",
+                "mainSeriesProperties.candleStyle.wickUpColor": "#00C805",
+                "mainSeriesProperties.candleStyle.wickDownColor": "#FF3B69"
+            }
+        });
+
+        // Add script to container
+        container.appendChild(script);
+
+        // Handle loading state
         script.onload = () => {
-            // @ts-expect-error TradingView widget is loaded externally
-            new TradingView.widget({
-                width: '100%',
-                height: 600,
-                symbol: symbol,
-                interval: 'D',
-                timezone: 'exchange',
-                theme: 'dark',
-                style: '1',
-                toolbar_bg: '#1E222D',
-                backgroundColor: "#0F0F10",
-                gridColor: "#1E222D",
-                enable_publishing: false,
-                allow_symbol_change: true,
-                container_id: containerId,
-                studies: [
-                    "MASimple@tv-basicstudies",
-                    "MACD@tv-basicstudies",
-                    "RSI@tv-basicstudies"
-                ],
-                loading_screen: { backgroundColor: "#0F0F10" },
-                hide_side_toolbar: false,
-                show_popup_button: true,
-                popup_width: '1000',
-                popup_height: '650',
-                onready: () => {
-                    setIsLoading(false);
-                }
-            });
+            if (isMounted) {
+                setIsLoading(false);
+            }
         };
 
         return () => {
-            const container = document.getElementById(containerId);
-            if (container) container.innerHTML = '';
+            isMounted = false;
+            if (container) {
+                container.innerHTML = '';
+            }
         };
     }, [symbol, containerId]);
 
     return (
-        <div className="relative">
-            <div id={containerId} className="w-full" />
-           
+        <div className="relative rounded-xl overflow-hidden bg-[#0A0A0A]">
+            <div id={containerId} className="w-full h-[600px]" />
+            {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-[#0A0A0A]">
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                </div>
+            )}
         </div>
     );
 };
@@ -334,69 +366,60 @@ const StockDataDisplay = ({ data, analysis }: {
   },
   analysis: { intent: string }
 }) => {
-  const sortedCalls = data.options?.unusualStrikes?.calls?.sort((a: OptionStrike, b: OptionStrike) => b.volume - a.volume) || [];
-  const sortedPuts = data.options?.unusualStrikes?.puts?.sort((a: OptionStrike, b: OptionStrike) => b.volume - a.volume) || [];
+  const chartId = generateId('chart');
 
   return (
     <div className="font-mono whitespace-pre-wrap text-sm space-y-4">
-      <div className="text-yellow-400 font-bold">Analysis Results:</div>
+      <div className="text-yellow-400 font-bold mb-4">Analysis Results:</div>
 
-      <div>
-        <div className="text-blue-400 font-bold">{data.ticker}:</div>
-        <div>Price: ${data.price.current.toFixed(2)}</div>
-        <div>Change: {data.changes.daily}</div>
+      <div className="mb-4">
+        <div className="text-blue-400 font-bold text-lg">
+          {data.ticker} ${data.price.current.toFixed(2)} ({data.changes.daily})
+        </div>
       </div>
 
-      {data.technicalLevels && (
-        <div>
-          <div className="text-yellow-400">Technical Levels:</div>
-          <div>50-Day MA: ${data.technicalLevels.fiftyDayMA?.toFixed(2) || 'N/A'}</div>
-          <div>200-Day MA: ${data.technicalLevels.twoHundredDayMA?.toFixed(2) || 'N/A'}</div>
-          <div>Support: ${data.technicalLevels.support?.toFixed(2) || 'N/A'}</div>
-          <div>Resistance: ${data.technicalLevels.resistance?.toFixed(2) || 'N/A'}</div>
-        </div>
-      )}
+      {/* TradingView Chart */}
+      <div className="h-[600px] w-full mb-6 bg-[#0F0F10] rounded-lg overflow-hidden border border-white/5">
+        <MemoizedTradingViewChart 
+          symbol={data.ticker} 
+          containerId={chartId}
+        />
+      </div>
 
-      {data.technicals && (
-        <div>
-          <div className="text-yellow-400">Technical Indicators:</div>
-          <div>RSI: {data.technicals.rsi?.toFixed(2) || 'N/A'}</div>
-          <div>MACD: {data.technicals.macd?.macd?.toFixed(2) || 'N/A'}</div>
-          <div>Signal: {data.technicals.macd?.signal?.toFixed(2) || 'N/A'}</div>
-        </div>
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {data.technicalLevels && (
+          <div className="bg-[#0F0F10]/40 p-4 rounded-lg border border-white/5">
+            <div className="text-yellow-400 font-bold mb-2">Technical Levels</div>
+            <div className="space-y-1">
+              <div>50-Day MA: ${data.technicalLevels.fiftyDayMA?.toFixed(2) || 'N/A'}</div>
+              <div>200-Day MA: ${data.technicalLevels.twoHundredDayMA?.toFixed(2) || 'N/A'}</div>
+              <div>Support: ${data.technicalLevels.support?.toFixed(2) || 'N/A'}</div>
+              <div>Resistance: ${data.technicalLevels.resistance?.toFixed(2) || 'N/A'}</div>
+            </div>
+          </div>
+        )}
+
+        {data.technicals && (
+          <div className="bg-[#0F0F10]/40 p-4 rounded-lg border border-white/5">
+            <div className="text-yellow-400 font-bold mb-2">Technical Indicators</div>
+            <div className="space-y-1">
+              <div>RSI: {data.technicals.rsi?.toFixed(2) || 'N/A'}</div>
+              <div>MACD: {data.technicals.macd?.macd?.toFixed(2) || 'N/A'}</div>
+              <div>Signal: {data.technicals.macd?.signal?.toFixed(2) || 'N/A'}</div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {data.options && (
-        <>
-          <div>
-            <div className="text-yellow-400">Options Overview:</div>
+        <div className="bg-[#0F0F10]/40 p-4 rounded-lg border border-white/5 mt-4">
+          <div className="text-yellow-400 font-bold mb-2">Options Overview</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>Put/Call Ratio: {data.options.putCallRatio?.toFixed(2) || 'N/A'}</div>
-            <div>Total Call Volume: {data.options.callVolume?.toLocaleString() || 'N/A'}</div>
-            <div>Total Put Volume: {data.options.putVolume?.toLocaleString() || 'N/A'}</div>
+            <div>Call Volume: {data.options.callVolume?.toLocaleString() || 'N/A'}</div>
+            <div>Put Volume: {data.options.putVolume?.toLocaleString() || 'N/A'}</div>
           </div>
-
-          {sortedCalls.length > 0 && (
-            <div>
-              <div className="text-yellow-400">Unusual Call Activity:</div>
-              {sortedCalls.map((call: OptionStrike, idx: number) => (
-                <div key={idx}>
-                  Strike: ${call.strike}, Volume: {call.volume.toLocaleString()}, OI: {call.openInterest.toLocaleString()}, IV: {(call.impliedVolatility * 100).toFixed(1)}%, % From Price: {call.percentFromPrice.toFixed(2)}%
-                </div>
-              ))}
-            </div>
-          )}
-
-          {sortedPuts.length > 0 && (
-            <div>
-              <div className="text-yellow-400">Unusual Put Activity:</div>
-              {sortedPuts.map((put: OptionStrike, idx: number) => (
-                <div key={idx}>
-                  Strike: ${put.strike}, Volume: {put.volume.toLocaleString()}, OI: {put.openInterest.toLocaleString()}, IV: {(put.impliedVolatility * 100).toFixed(1)}%, % From Price: {put.percentFromPrice.toFixed(2)}%
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+        </div>
       )}
 
       <div className="text-xs text-gray-400 mt-4 border-t border-gray-700 pt-4">
@@ -988,7 +1011,8 @@ const queryAI = async (input: string): Promise<StockAnalysisResponse> => {
     const response = await axios.post(
       'https://us-central1-shopify-webscraper.cloudfunctions.net/app/askQuestion',
       {
-        question: input
+        question: input,
+        extractTicker: true
       },
       {
         headers: {
@@ -1001,69 +1025,71 @@ const queryAI = async (input: string): Promise<StockAnalysisResponse> => {
       throw new Error(response.data.message || 'Failed to process question');
     }
 
+    // If no ticker was found in the response, try to extract it locally
+    if (!response.data.data?.ticker || response.data.data.ticker === 'UNKNOWN') {
+      const extractedTicker = extractTickerFromText(input);
+      if (extractedTicker) {
+        response.data.data.ticker = extractedTicker;
+      } else {
+        throw new Error('No ticker symbol detected in your question. Please include a stock symbol (e.g., AAPL, MSFT, GOOGL).');
+      }
+    }
+
     return response.data;
   } catch (error) {
     console.error('AI Query Error:', error);
+    if (axios.isAxiosError(error) && error.response?.status === 400) {
+      throw new Error('No ticker symbol detected in your question. Please include a stock symbol (e.g., AAPL, MSFT, GOOGL).');
+    }
     const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
     throw new Error(`Failed to analyze question: ${errorMessage}`);
   }
 };
 
-// Add helper function to extract tickers from text
-const extractTickersFromText = (text: string): string[] => {
-  const tickerPatterns = [
-    /\$([A-Za-z]{1,5})\b/g,                   // $TICKER format
-    /\b([A-Za-z]{1,5}):([A-Za-z]+)\b/g,       // TICKER:EXCHANGE format
-    /\b(?:of|for|in|about)\s+([A-Za-z]{1,5})\b/gi,  // Common phrases
+// Add improved ticker extraction function
+const extractTickerFromText = (text: string): string | null => {
+  // Common stock tickers
+  const commonTickers = new Map([
+    ['apple', 'AAPL'],
+    ['microsoft', 'MSFT'],
+    ['google', 'GOOGL'],
+    ['amazon', 'AMZN'],
+    ['tesla', 'TSLA'],
+    ['meta', 'META'],
+    ['facebook', 'META'],
+    ['netflix', 'NFLX'],
+    ['nvidia', 'NVDA']
+  ]);
+
+  // First, check for company names
+  const lowercaseText = text.toLowerCase();
+  for (const [company, ticker] of commonTickers.entries()) {
+    if (lowercaseText.includes(company)) {
+      return ticker;
+    }
+  }
+
+  // Then try different patterns
+  const patterns = [
+    /\$([A-Za-z]{1,5})\b/i,                                    // $TICK
+    /\b([A-Za-z]{1,5}):([A-Za-z]+)\b/i,                       // TICK:EXCHANGE
+    /\b(?:of|for|in|about|analyze|check)\s+([A-Za-z]{1,5})\b/i,  // Common phrases
+    /\b([A-Za-z]{1,5})\s+(?:stock|share|price|analysis)\b/i,  // TICK stock/share
+    /\b([A-Za-z]{1,5})\b/                                     // Standalone ticker
   ];
 
-  const tickers = new Set<string>();
-  
-  tickerPatterns.forEach(pattern => {
-    const matches = text.matchAll(pattern);
-    for (const match of matches) {
-      if (match[1]) {
-        tickers.add(match[1].toUpperCase());
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      const potential = match[1].toUpperCase();
+      // Basic validation: must be 1-5 characters, all letters
+      if (/^[A-Z]{1,5}$/.test(potential) && !['A', 'I', 'OF', 'FOR', 'IN', 'THE', 'AND'].includes(potential)) {
+        return potential;
       }
     }
-  });
-
-  return Array.from(tickers);
-};
-
-// Update the getQuestionAnalysis function with better error handling
-const getQuestionAnalysis = async (input: string) => {
-  try {
-    const response = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        messages: [{
-          role: "user",
-          content: `Analyze this question about stocks: "${input}"
-            Return a JSON object with:
-            1. intent: one of ["sentiment", "technical", "comparison", "volatility", "support_resistance", "dividend", "price_movement", "valuation", "options"]
-            2. tickers: array of stock symbols mentioned
-            3. timeframe: one of ["intraday", "short_term", "medium_term", "long_term"]
-            4. dataPoints: array of specific metrics requested
-            5. analysisDepth: one of ["basic", "detailed", "comprehensive"]`
-        }],
-        model: "gpt-4-turbo-preview",
-        temperature: 0.3,
-        response_format: { type: "json_object" }
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    return JSON.parse(response.data.choices[0].message.content);
-  } catch (error) {
-    console.error('Analysis Error:', error);
-    throw new Error('Failed to analyze question structure');
   }
+
+  return null;
 };
 
 // Add FeedbackType enum at the top of the file with other types
@@ -1237,6 +1263,55 @@ const generateId = (() => {
     return (type: string = 'msg') => `${type}_${prefix}_${counter++}`;
 })();
 
+// Add this near other interfaces
+interface SignupModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    message: string;
+}
+
+// Add the SignupModal component
+const SignupModal = ({ isOpen, onClose, message }: SignupModalProps) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-background border border-white/10 rounded-lg max-w-md w-full p-6 space-y-4">
+                <h2 className="text-xl font-semibold text-white">Create an Account</h2>
+                <p className="text-white/70">
+                    {message}
+                </p>
+                <ul className="space-y-2 text-white/70">
+                    <li className="flex items-center gap-2">
+                        <span className="text-green-400">✓</span> Unlimited AI-powered stock analysis
+                    </li>
+                    <li className="flex items-center gap-2">
+                        <span className="text-green-400">✓</span> Personalized investment insights
+                    </li>
+                    <li className="flex items-center gap-2">
+                        <span className="text-green-400">✓</span> Advanced technical indicators
+                    </li>
+                </ul>
+                <div className="space-y-2">
+                    <Button 
+                        className="w-full"
+                        onClick={() => window.location.href = '/signup'}
+                    >
+                        Create Account
+                    </Button>
+                    <Button 
+                        variant="ghost" 
+                        className="w-full"
+                        onClick={() => window.location.href = '/login'}
+                    >
+                        Already have an account? Log in
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // Main component that receives searchParams as a prop
 const StockGPTContent = () => {
     const router = useRouter();
@@ -1260,6 +1335,18 @@ const StockGPTContent = () => {
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
     const [similarTickers, setSimilarTickers] = useState<SimilarTicker[]>([]);
+    const [questionCount, setQuestionCount] = useState(0);
+    const [showSignupModal, setShowSignupModal] = useState(false);
+    const MAX_FREE_QUESTIONS = 6;
+    const [guestQuestions, setGuestQuestions] = useState(() => {
+        // Initialize from localStorage if available
+        if (typeof window !== 'undefined') {
+            const stored = localStorage.getItem('guestQuestionCount');
+            return stored ? parseInt(stored, 10) : 0;
+        }
+        return 0;
+    });
+    const MAX_GUEST_QUESTIONS = 1;
 
     const tickerPatterns = {
         dollarSymbol: /\$([A-Za-z]{1,5})\b/,
@@ -1401,10 +1488,29 @@ const StockGPTContent = () => {
         }
     };
 
-    // Update handleSubmit function
+    // Add this function to check authentication
+    const checkAuthAndIncrementCount = () => {
+        const uid = Cookies.get('uid');
+        if (!uid) {
+            // Guest mode
+            if (guestQuestions >= MAX_GUEST_QUESTIONS) {
+                setShowSignupModal(true);
+                return false;
+            }
+            setGuestQuestions(prev => prev + 1);
+        }
+        return true;
+    };
+
+    // Update handleSubmit to check auth
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!input.trim() || isLoading) return;
+        
+        // Check auth before proceeding
+        if (!checkAuthAndIncrementCount()) {
+            return;
+        }
         
         try {
             setIsLoading(true);
@@ -1582,48 +1688,41 @@ const StockGPTContent = () => {
       }
     };
 
+    // Add this effect to persist guest question count
+    useEffect(() => {
+        localStorage.setItem('guestQuestionCount', guestQuestions.toString());
+    }, [guestQuestions]);
+
+    // Update SignupModal text to show remaining questions
+    const getSignupModalContent = () => {
+        const remainingQuestions = MAX_GUEST_QUESTIONS - guestQuestions;
+        if (remainingQuestions <= 0) {
+            return "You've reached the limit for guest questions. Sign up to get:";
+        }
+        return `You have ${remainingQuestions} questions remaining in guest mode. Sign up to get:`;
+    };
+
     return (
-    <PageTemplate title="" description=''>
-        <div className="flex flex-col h-full fixed inset-0 pt-14 bg-background">
-            {/* Messages Area - Only this should scroll */}
+    <PageTemplate title="" description="">
+        <div className="flex flex-col h-full fixed inset-0 pt-14 bg-[#0A0A0A]">
+            {/* Messages Area */}
             <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
                 <div className="p-4 md:p-6">
-                    <div className="max-w-4xl mx-auto space-y-6">
+                    <div className="max-w-6xl mx-auto space-y-6">
                         {messages.length === 0 ? (
                             <div className="h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center px-4">
-                                {/* Title Section */}
-                                <div className="mb-12">
-                                    <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
-                                        StocX
+                                {/* Hero Section */}
+                                <div className="mb-16 space-y-6">
+                                    <h1 className="text-6xl md:text-7xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-transparent bg-clip-text mb-4">
+                                        StocX AI
                                     </h1>
-                                    <p className="text-xl text-white/70">
-                                        Powered by AI market analysis
+                                    <p className="text-2xl text-white/70 max-w-2xl mx-auto">
+                                        Your AI-powered stock analysis assistant. Get real-time insights, technical analysis, and market sentiment.
                                     </p>
                                 </div>
 
-                                {/* Scrolling Pills */}
-                                <div className="w-full max-w-3xl mb-8 overflow-hidden relative">
-                                    <div className="absolute left-0 w-20 h-full bg-gradient-to-r from-background to-transparent z-10" />
-                                    <div className="absolute right-0 w-20 h-full bg-gradient-to-l from-background to-transparent z-10" />
-                                    
-                                    {/* First set of scrolling items */}
-                                    <div className="flex gap-2 animate-scroll-x">
-                                        {[...EXAMPLE_PROMPTS.flatMap(section => section.prompts), ...EXAMPLE_PROMPTS.flatMap(section => section.prompts)].map((prompt, index) => (
-                                            <button
-                                                key={`${index}-first`}
-                                                onClick={() => setInput(prompt)}
-                                                className="flex-none px-4 py-2 rounded-full bg-white/5 border border-white/10 
-                                                                     hover:bg-white/10 transition-colors duration-200 
-                                                                     text-white/70 hover:text-white/90 text-sm whitespace-nowrap"
-                                            >
-                                                {prompt}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Centered Search Bar */}
-                                <div className="w-full max-w-2xl">
+                                {/* Search Bar */}
+                                <div className="w-full max-w-3xl">
                                     <div className="relative">
                                         <Input
                                             value={input}
@@ -1631,14 +1730,14 @@ const StockGPTContent = () => {
                                             onKeyDown={handleKeyDown}
                                             placeholder="Ask about any stock... e.g., 'Analyze AAPL'"
                                             className="bg-white/5 border-white/10 text-white/90 placeholder:text-white/50 
-                                                                 rounded-2xl h-16 px-6 pr-20 transition-all duration-200 
-                                                                 hover:bg-white/10 text-lg"
+                                                     rounded-2xl h-16 px-6 pr-20 transition-all duration-200 
+                                                     hover:bg-white/10 text-lg shadow-lg"
                                         />
                                         <Button
                                             onClick={handleSubmit}
                                             disabled={isLoading || !input.trim()}
-                                            className="absolute right-2 top-2 h-12 w-12 rounded-xl bg-primary 
-                                                                 hover:bg-primary/90 transition-all duration-200"
+                                            className="absolute right-2 top-2 h-12 w-12 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 
+                                                     hover:opacity-90 transition-all duration-200"
                                         >
                                             {isLoading ? (
                                                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -1648,71 +1747,80 @@ const StockGPTContent = () => {
                                         </Button>
                                     </div>
                                 </div>
-                            </div>
-                        ) : (
-                            // Regular messages when chat has content
-                            messages.map((message, index) => (
-                                <div
-                                    key={message.id}
-                                    className={cn(
-                                        "flex animate-message-in opacity-0",
-                                        message.type === 'user' ? "justify-end" : "justify-start"
-                                    )}
-                                    style={{
-                                        animationDelay: `${index * 100}ms`
-                                    }}
-                                >
-                                    <div
-                                        className={cn(
-                                            "max-w-[95%] md:max-w-[85%] rounded-2xl px-5 py-4 transition-all duration-200 hover:scale-[1.01]",
-                                            message.type === 'user'
-                                                ? "bg-primary text-primary-foreground"
-                                                : "bg-card text-card-foreground border border-white/5"
-                                        )}
-                                    >
-                                        <AnimatedMessage 
-                                            content={message.content} 
-                                            isNew={index === messages.length - 1 && message.type !== 'user'} 
-                                            type={message.type}
-                                        />
-                                        {message.type === 'data' && message.data && (
-                                            <div className="mt-6 space-y-4 bg-background/40 p-5 rounded-xl backdrop-blur-sm border border-white/5 transition-all duration-200 hover:bg-background/50">
-                                                <StockDataDisplay 
-                                                    data={message.data as any}
-                                                    analysis={{ intent: message.intent || 'unknown' }}
-                                                />
-                                            </div>
-                                        )}
-                                        {message.type === 'system' && (
-                                            <div className="mt-4">
-                                                <FeedbackButtons 
-                                                    messageId={message.id}
-                                                    question={messages[index - 2]?.content || ''} 
-                                                    answer={message.content}
-                                                />
-                                            </div>
-                                        )}
+
+                                {/* Features Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 w-full max-w-4xl">
+                                    <div className="bg-white/5 p-6 rounded-2xl border border-white/10 backdrop-blur-sm">
+                                        <div className="text-blue-500 mb-4">
+                                            <LineChart className="h-8 w-8" />
+                                        </div>
+                                        <h3 className="text-lg font-semibold mb-2">Technical Analysis</h3>
+                                        <p className="text-white/70">Get real-time technical indicators and price analysis</p>
+                                    </div>
+                                    <div className="bg-white/5 p-6 rounded-2xl border border-white/10 backdrop-blur-sm">
+                                        <div className="text-purple-500 mb-4">
+                                            <BookmarkIcon className="h-8 w-8" />
+                                        </div>
+                                        <h3 className="text-lg font-semibold mb-2">Market Sentiment</h3>
+                                        <p className="text-white/70">Understand market sentiment and trading signals</p>
+                                    </div>
+                                    <div className="bg-white/5 p-6 rounded-2xl border border-white/10 backdrop-blur-sm">
+                                        <div className="text-green-500 mb-4">
+                                            <Newspaper className="h-8 w-8" />
+                                        </div>
+                                        <h3 className="text-lg font-semibold mb-2">News Analysis</h3>
+                                        <p className="text-white/70">Stay updated with latest market news and analysis</p>
                                     </div>
                                 </div>
-                            ))
+                            </div>
+                        ) : (
+                            // Chat Messages
+                            <div className="space-y-6">
+                                {messages.map((message, index) => (
+                                    <div
+                                        key={message.id}
+                                        className={cn(
+                                            "flex animate-message-in opacity-0",
+                                            message.type === 'user' ? "justify-end" : "justify-start"
+                                        )}
+                                        style={{
+                                            animationDelay: `${index * 100}ms`
+                                        }}
+                                    >
+                                        <div
+                                            className={cn(
+                                                "max-w-[95%] md:max-w-[85%] rounded-2xl px-6 py-4 shadow-lg",
+                                                message.type === 'user'
+                                                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
+                                                    : "bg-white/5 text-white border border-white/10 backdrop-blur-sm"
+                                            )}
+                                        >
+                                            <AnimatedMessage 
+                                                content={message.content} 
+                                                isNew={index === messages.length - 1 && message.type !== 'user'} 
+                                                type={message.type}
+                                            />
+                                            {message.type === 'data' && message.data && (
+                                                <div className="mt-6 space-y-4">
+                                                    <StockDataDisplay 
+                                                        data={message.data as any}
+                                                        analysis={{ intent: message.intent || 'unknown' }}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         )}
                     </div>
                 </div>
             </div>
 
-            {/* Input Area - Fixed at bottom */}
+            {/* Input Area */}
             {messages.length > 0 && (
-                <div className="bg-background/80 backdrop-blur-lg border-t border-white/5 p-4 md:p-6">
-                    <div className="max-w-4xl mx-auto space-y-4">
-                        {currentTicker && (
-                            <div className="mb-4 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
-                                <SimilarTickers 
-                                    tickers={similarTickers} 
-                                    onAnalyze={analyzeStock} 
-                                />
-                            </div>
-                        )}
-
+                <div className="bg-[#0A0A0A]/90 backdrop-blur-lg border-t border-white/10 p-4 md:p-6">
+                    <div className="max-w-6xl mx-auto space-y-4">
                         <form onSubmit={handleSubmit} className="flex gap-3">
                             <Input
                                 type="text"
@@ -1720,12 +1828,12 @@ const StockGPTContent = () => {
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder="Ask about a stock..."
                                 disabled={isLoading}
-                                className="flex-1 text-base rounded-2xl h-14 px-6 bg-white/5 border-white/10"
+                                className="flex-1 text-base rounded-2xl h-14 px-6 bg-white/5 border-white/10 shadow-lg"
                             />
                             <Button 
                                 type="submit" 
                                 disabled={isLoading || !input.trim()} 
-                                className="h-14 w-14 rounded-xl"
+                                className="h-14 w-14 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90"
                             >
                                 {isLoading ? (
                                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -1740,7 +1848,7 @@ const StockGPTContent = () => {
 
             {/* News Panel Overlay */}
             {showNews && currentTicker && (
-                <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-background border-l border-border z-50">
+                <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-[#0A0A0A] border-l border-white/10 z-50">
                     <div className="p-4 border-b border-border flex justify-between items-center">
                         <h2 className="font-semibold">News for {currentTicker}</h2>
                         <Button variant="ghost" size="icon" onClick={() => setShowNews(false)}>
@@ -1752,30 +1860,14 @@ const StockGPTContent = () => {
                     </div>
                 </div>
             )}
-
-            {/* Fullscreen Chart Modal */}
-            {showCandlestick && currentTicker && (
-                <div className="fixed inset-0 bg-black/90 z-50">
-                    <div className="absolute top-4 right-4 z-50">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setShowCandlestick(false)}
-                            className="bg-white/10 hover:bg-white/20"
-                        >
-                            <X className="h-4 w-4 text-white" />
-                        </Button>
-                    </div>
-                    <div className="h-full p-4">
-                        <EnhancedTradingViewChart 
-                            symbol={currentTicker} 
-                            containerId={`fullscreen-chart`} 
-                        />
-                    </div>
-                </div>
-            )}
+            
+            <SignupModal 
+                isOpen={showSignupModal} 
+                onClose={() => setShowSignupModal(false)} 
+                message={getSignupModalContent()} 
+            />
         </div>
-    </PageTemplate>
+        </PageTemplate>
     );
 }
 
@@ -1804,8 +1896,11 @@ const CustomTooltip = ({ active, payload }: any) => {
                     </div>
                 )}
             </div>
+            
         );
+       
     }
+  
     return null;
 };
 

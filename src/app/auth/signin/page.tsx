@@ -29,7 +29,7 @@ export default function AuthPage() {
   const handleUserInfoComplete = async () => {
     const success = await initializeUserData(currentUser.uid);
     if (success) {
-      router.push('/components/stock-gpt');
+      router.push('/');
     }
   }
 

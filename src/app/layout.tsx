@@ -1,12 +1,8 @@
-import { Poppins } from 'next/font/google'
-import { ThemeProvider } from '@/components/theme-provider'
+import { Inter } from 'next/font/google'
 import './globals.css'
+import { ThemeProvider } from '@/components/theme-provider'
 
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-poppins',
-})
+const inter = Inter({ subsets: ['latin'] })
 
 export default function RootLayout({
   children,
@@ -14,14 +10,9 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${poppins.variable} font-poppins`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
+    <html lang="en" suppressHydrationWarning className="dark">
+      <body className={`${inter.className} bg-[#0A0A0A]`}>
+        <ThemeProvider>
           {children}
         </ThemeProvider>
       </body>

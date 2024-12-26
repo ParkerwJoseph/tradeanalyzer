@@ -39,7 +39,7 @@ export default function SignUpPage() {
 
       const success = await initializeUserData(user.uid)
       if (success) {
-        router.push('/components/stock-gpt')
+        router.push('/')
       }
     } catch (error: any) {
       setError(error.message)
