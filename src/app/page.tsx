@@ -18,6 +18,7 @@ import { trackUserQuestion, logUserActivity, saveConversation, trackTickerSearch
 import { ref, get, set } from 'firebase/database'
 import { database } from '@/lib/firebase'
 import { OpenAI } from 'openai'
+import { ScrollingQuestions } from '@/components/ScrollingQuestions'
 
 // Types
 interface StockData {
@@ -949,7 +950,7 @@ const SAMPLE_QUESTIONS = [
 ];
 
 // Add this new component
-const ScrollingQuestions = ({ onQuestionClick }: { onQuestionClick: (question: string) => void }) => {
+const ScrollingQuestionss = ({ onQuestionClick }: { onQuestionClick: (question: string) => void }) => {
   return (
     <div className="relative w-full overflow-hidden py-4 before:absolute before:left-0 before:top-0 before:z-10 before:h-full before:w-20 before:bg-gradient-to-r before:from-background before:to-transparent after:absolute after:right-0 after:top-0 after:z-10 after:h-full after:w-20 after:bg-gradient-to-l after:from-background after:to-transparent">
       <div className="animate-scroll flex gap-4 whitespace-nowrap">
@@ -1720,6 +1721,9 @@ const StockGPTContent = () => {
                                         Your AI-powered stock analysis assistant. Get real-time insights, technical analysis, and market sentiment.
                                     </p>
                                 </div>
+
+                                {/* Add ScrollingQuestions here */}
+                                <ScrollingQuestionss onQuestionClick={(question) => setInput(question)} />
 
                                 {/* Search Bar */}
                                 <div className="w-full max-w-3xl">
