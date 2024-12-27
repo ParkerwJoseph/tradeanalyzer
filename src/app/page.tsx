@@ -375,13 +375,13 @@ const StockDataDisplay = ({ data, analysis }: {
       <div className="text-yellow-400 font-bold mb-4">Analysis Results:</div>
 
       <div className="mb-4">
-        <div className="text-blue-400 font-bold text-lg">
+        <div className="text-blue-400 font-bold text-base md:text-lg">
           {data.ticker} ${data.price.current.toFixed(2)} ({data.changes.daily})
         </div>
       </div>
 
       {/* TradingView Chart */}
-      <div className="h-[600px] w-full mb-6 bg-[#0F0F10] rounded-lg overflow-hidden border border-white/5">
+      <div className="h-[300px] md:h-[600px] w-full mb-6 bg-[#0F0F10] rounded-lg overflow-hidden border border-white/5">
         <MemoizedTradingViewChart 
           symbol={data.ticker} 
           containerId={chartId}
@@ -390,41 +390,71 @@ const StockDataDisplay = ({ data, analysis }: {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {data.technicalLevels && (
-          <div className="bg-[#0F0F10]/40 p-4 rounded-lg border border-white/5">
-            <div className="text-yellow-400 font-bold mb-2">Technical Levels</div>
-            <div className="space-y-1">
-              <div>50-Day MA: ${data.technicalLevels.fiftyDayMA?.toFixed(2) || 'N/A'}</div>
-              <div>200-Day MA: ${data.technicalLevels.twoHundredDayMA?.toFixed(2) || 'N/A'}</div>
-              <div>Support: ${data.technicalLevels.support?.toFixed(2) || 'N/A'}</div>
-              <div>Resistance: ${data.technicalLevels.resistance?.toFixed(2) || 'N/A'}</div>
+          <div className="bg-[#0F0F10]/40 p-3 md:p-4 rounded-lg border border-white/5">
+            <div className="text-yellow-400 font-bold mb-2 text-sm md:text-base">Technical Levels</div>
+            <div className="space-y-1 text-xs md:text-sm">
+              <div className="flex justify-between">
+                <span>50-Day MA:</span>
+                <span>${data.technicalLevels.fiftyDayMA?.toFixed(2) || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>200-Day MA:</span>
+                <span>${data.technicalLevels.twoHundredDayMA?.toFixed(2) || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Support:</span>
+                <span>${data.technicalLevels.support?.toFixed(2) || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Resistance:</span>
+                <span>${data.technicalLevels.resistance?.toFixed(2) || 'N/A'}</span>
+              </div>
             </div>
           </div>
         )}
 
         {data.technicals && (
-          <div className="bg-[#0F0F10]/40 p-4 rounded-lg border border-white/5">
-            <div className="text-yellow-400 font-bold mb-2">Technical Indicators</div>
-            <div className="space-y-1">
-              <div>RSI: {data.technicals.rsi?.toFixed(2) || 'N/A'}</div>
-              <div>MACD: {data.technicals.macd?.macd?.toFixed(2) || 'N/A'}</div>
-              <div>Signal: {data.technicals.macd?.signal?.toFixed(2) || 'N/A'}</div>
+          <div className="bg-[#0F0F10]/40 p-3 md:p-4 rounded-lg border border-white/5">
+            <div className="text-yellow-400 font-bold mb-2 text-sm md:text-base">Technical Indicators</div>
+            <div className="space-y-1 text-xs md:text-sm">
+              <div className="flex justify-between">
+                <span>RSI:</span>
+                <span>{data.technicals.rsi?.toFixed(2) || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>MACD:</span>
+                <span>{data.technicals.macd?.macd?.toFixed(2) || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Signal:</span>
+                <span>{data.technicals.macd?.signal?.toFixed(2) || 'N/A'}</span>
+              </div>
             </div>
           </div>
         )}
       </div>
 
       {data.options && (
-        <div className="bg-[#0F0F10]/40 p-4 rounded-lg border border-white/5 mt-4">
-          <div className="text-yellow-400 font-bold mb-2">Options Overview</div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>Put/Call Ratio: {data.options.putCallRatio?.toFixed(2) || 'N/A'}</div>
-            <div>Call Volume: {data.options.callVolume?.toLocaleString() || 'N/A'}</div>
-            <div>Put Volume: {data.options.putVolume?.toLocaleString() || 'N/A'}</div>
+        <div className="bg-[#0F0F10]/40 p-3 md:p-4 rounded-lg border border-white/5 mt-4">
+          <div className="text-yellow-400 font-bold mb-2 text-sm md:text-base">Options Overview</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 text-xs md:text-sm">
+            <div className="flex justify-between md:block">
+              <span>Put/Call Ratio:</span>
+              <span>{data.options.putCallRatio?.toFixed(2) || 'N/A'}</span>
+            </div>
+            <div className="flex justify-between md:block">
+              <span>Call Volume:</span>
+              <span>{data.options.callVolume?.toLocaleString() || 'N/A'}</span>
+            </div>
+            <div className="flex justify-between md:block">
+              <span>Put Volume:</span>
+              <span>{data.options.putVolume?.toLocaleString() || 'N/A'}</span>
+            </div>
           </div>
         </div>
       )}
 
-      <div className="text-xs text-gray-400 mt-4 border-t border-gray-700 pt-4">
+      <div className="text-[10px] md:text-xs text-gray-400 mt-4 border-t border-gray-700 pt-4">
         Disclaimer: This analysis is for informational purposes only and should not be considered as financial or trading advice. Always conduct your own research and consult with a licensed financial advisor before making investment decisions.
       </div>
     </div>
@@ -1714,11 +1744,11 @@ const StockGPTContent = () => {
                         {messages.length === 0 ? (
                             <div className="h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center px-4">
                                 {/* Hero Section */}
-                                <div className="mb-16 space-y-6">
-                                    <h1 className="text-6xl md:text-7xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-transparent bg-clip-text mb-4">
+                                <div className="mb-8 md:mb-16 space-y-4 md:space-y-6">
+                                    <h1 className="text-4xl md:text-7xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-transparent bg-clip-text mb-2 md:mb-4">
                                         StocX AI
                                     </h1>
-                                    <p className="text-2xl text-white/70 max-w-2xl mx-auto">
+                                    <p className="text-lg md:text-2xl text-white/70 max-w-2xl mx-auto px-4">
                                         Your AI-powered stock analysis assistant. Get real-time insights, technical analysis, and market sentiment.
                                     </p>
                                 </div>
@@ -1727,54 +1757,54 @@ const StockGPTContent = () => {
                                 <ScrollingQuestionss onQuestionClick={(question) => setInput(question)} />
 
                                 {/* Search Bar */}
-                                <div className="w-full max-w-3xl">
+                                <div className="w-full max-w-3xl px-4">
                                     <div className="relative">
                                         <Input
                                             value={input}
                                             onChange={(e) => setInput(e.target.value)}
                                             onKeyDown={handleKeyDown}
-                                            placeholder="Ask about any stock... e.g., 'Analyze AAPL'"
+                                            placeholder="Ask about any stock..."
                                             className="bg-white/5 border-white/10 text-white/90 placeholder:text-white/50 
-                                                     rounded-2xl h-16 px-6 pr-20 transition-all duration-200 
-                                                     hover:bg-white/10 text-lg shadow-lg"
+                                                     rounded-2xl h-12 md:h-16 px-4 md:px-6 pr-16 md:pr-20 transition-all duration-200 
+                                                     hover:bg-white/10 text-base md:text-lg shadow-lg"
                                         />
                                         <Button
                                             onClick={handleSubmit}
                                             disabled={isLoading || !input.trim()}
-                                            className="absolute right-2 top-2 h-12 w-12 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 
+                                            className="absolute right-2 top-2 h-8 w-8 md:h-12 md:w-12 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 
                                                      hover:opacity-90 transition-all duration-200"
                                         >
                                             {isLoading ? (
-                                                <Loader2 className="h-6 w-6 animate-spin" />
+                                                <Loader2 className="h-4 w-4 md:h-6 md:w-6 animate-spin" />
                                             ) : (
-                                                <Send className="h-6 w-6" />
+                                                <Send className="h-4 w-4 md:h-6 md:w-6" />
                                             )}
                                         </Button>
                                     </div>
                                 </div>
 
                                 {/* Features Grid */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 w-full max-w-4xl">
-                                    <div className="bg-white/5 p-6 rounded-2xl border border-white/10 backdrop-blur-sm">
-                                        <div className="text-blue-500 mb-4">
-                                            <LineChart className="h-8 w-8" />
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mt-8 md:mt-16 w-full max-w-4xl px-4">
+                                    <div className="bg-white/5 p-4 md:p-6 rounded-xl md:rounded-2xl border border-white/10 backdrop-blur-sm">
+                                        <div className="text-blue-500 mb-3 md:mb-4">
+                                            <LineChart className="h-6 w-6 md:h-8 md:w-8" />
                                         </div>
-                                        <h3 className="text-lg font-semibold mb-2">Technical Analysis</h3>
-                                        <p className="text-white/70">Get real-time technical indicators and price analysis</p>
+                                        <h3 className="text-base md:text-lg font-semibold mb-1 md:mb-2">Technical Analysis</h3>
+                                        <p className="text-sm md:text-base text-white/70">Get real-time technical indicators and price analysis</p>
                                     </div>
-                                    <div className="bg-white/5 p-6 rounded-2xl border border-white/10 backdrop-blur-sm">
-                                        <div className="text-purple-500 mb-4">
-                                            <BookmarkIcon className="h-8 w-8" />
+                                    <div className="bg-white/5 p-4 md:p-6 rounded-xl md:rounded-2xl border border-white/10 backdrop-blur-sm">
+                                        <div className="text-purple-500 mb-3 md:mb-4">
+                                            <BookmarkIcon className="h-6 w-6 md:h-8 md:w-8" />
                                         </div>
-                                        <h3 className="text-lg font-semibold mb-2">Market Sentiment</h3>
-                                        <p className="text-white/70">Understand market sentiment and trading signals</p>
+                                        <h3 className="text-base md:text-lg font-semibold mb-1 md:mb-2">Market Sentiment</h3>
+                                        <p className="text-sm md:text-base text-white/70">Understand market sentiment and trading signals</p>
                                     </div>
-                                    <div className="bg-white/5 p-6 rounded-2xl border border-white/10 backdrop-blur-sm">
-                                        <div className="text-green-500 mb-4">
-                                            <Newspaper className="h-8 w-8" />
+                                    <div className="bg-white/5 p-4 md:p-6 rounded-xl md:rounded-2xl border border-white/10 backdrop-blur-sm">
+                                        <div className="text-green-500 mb-3 md:mb-4">
+                                            <Newspaper className="h-6 w-6 md:h-8 md:w-8" />
                                         </div>
-                                        <h3 className="text-lg font-semibold mb-2">News Analysis</h3>
-                                        <p className="text-white/70">Stay updated with latest market news and analysis</p>
+                                        <h3 className="text-base md:text-lg font-semibold mb-1 md:mb-2">News Analysis</h3>
+                                        <p className="text-sm md:text-base text-white/70">Stay updated with latest market news and analysis</p>
                                     </div>
                                 </div>
                             </div>
@@ -1853,14 +1883,19 @@ const StockGPTContent = () => {
 
             {/* News Panel Overlay */}
             {showNews && currentTicker && (
-                <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-[#0A0A0A] border-l border-white/10 z-50">
-                    <div className="p-4 border-b border-border flex justify-between items-center">
-                        <h2 className="font-semibold">News for {currentTicker}</h2>
-                        <Button variant="ghost" size="icon" onClick={() => setShowNews(false)}>
-                            <X className="h-4 w-4" />
+                <div className="fixed inset-y-0 right-0 w-full md:w-96 bg-[#0A0A0A] border-l border-white/10 z-50 overflow-hidden">
+                    <div className="sticky top-0 p-3 md:p-4 border-b border-border flex justify-between items-center bg-[#0A0A0A]">
+                        <h2 className="font-semibold text-sm md:text-base">News for {currentTicker}</h2>
+                        <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-8 w-8 md:h-10 md:w-10" 
+                            onClick={() => setShowNews(false)}
+                        >
+                            <X className="h-4 w-4 md:h-5 md:w-5" />
                         </Button>
                     </div>
-                    <div className="p-4 overflow-y-auto h-[calc(100vh-65px)]">
+                    <div className="p-3 md:p-4 overflow-y-auto h-[calc(100vh-48px)] md:h-[calc(100vh-65px)]">
                         <NewsPanel ticker={currentTicker} />
                     </div>
                 </div>
