@@ -1742,22 +1742,24 @@ const StockGPTContent = () => {
                 <div className="p-4 md:p-6">
                     <div className="max-w-6xl mx-auto space-y-6">
                         {messages.length === 0 ? (
-                            <div className="h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center px-4">
+                            <div className="min-h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center px-4 py-6">
                                 {/* Hero Section */}
-                                <div className="mb-8 md:mb-16 space-y-4 md:space-y-6">
-                                    <h1 className="text-4xl md:text-7xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-transparent bg-clip-text mb-2 md:mb-4">
+                                <div className="mb-4 md:mb-16 space-y-4">
+                                    <h1 className="text-3xl md:text-7xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-transparent bg-clip-text">
                                         StocX AI
                                     </h1>
-                                    <p className="text-lg md:text-2xl text-white/70 max-w-2xl mx-auto px-4">
-                                        Your AI-powered stock analysis assistant. Get real-time insights, technical analysis, and market sentiment.
+                                    <p className="text-base md:text-2xl text-white/70 max-w-2xl mx-auto px-2 md:px-4">
+                                        Your AI-powered stock analysis assistant
                                     </p>
                                 </div>
 
                                 {/* Add ScrollingQuestions here */}
-                                <ScrollingQuestionss onQuestionClick={(question) => setInput(question)} />
+                                <div className="w-full mb-6">
+                                    <ScrollingQuestionss onQuestionClick={(question) => setInput(question)} />
+                                </div>
 
                                 {/* Search Bar */}
-                                <div className="w-full max-w-3xl px-4">
+                                <div className="w-full max-w-3xl px-4 mb-8">
                                     <div className="relative">
                                         <Input
                                             value={input}
@@ -1783,28 +1785,28 @@ const StockGPTContent = () => {
                                     </div>
                                 </div>
 
-                                {/* Features Grid */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mt-8 md:mt-16 w-full max-w-4xl px-4">
-                                    <div className="bg-white/5 p-4 md:p-6 rounded-xl md:rounded-2xl border border-white/10 backdrop-blur-sm">
-                                        <div className="text-blue-500 mb-3 md:mb-4">
-                                            <LineChart className="h-6 w-6 md:h-8 md:w-8" />
+                                {/* Features Grid - Hidden on mobile */}
+                                <div className="hidden md:grid md:grid-cols-3 gap-6 w-full max-w-4xl px-4">
+                                    <div className="bg-white/5 p-6 rounded-2xl border border-white/10 backdrop-blur-sm">
+                                        <div className="text-blue-500 mb-4">
+                                            <LineChart className="h-8 w-8" />
                                         </div>
-                                        <h3 className="text-base md:text-lg font-semibold mb-1 md:mb-2">Technical Analysis</h3>
-                                        <p className="text-sm md:text-base text-white/70">Get real-time technical indicators and price analysis</p>
+                                        <h3 className="text-lg font-semibold mb-2">Technical Analysis</h3>
+                                        <p className="text-white/70">Get real-time technical indicators and price analysis</p>
                                     </div>
-                                    <div className="bg-white/5 p-4 md:p-6 rounded-xl md:rounded-2xl border border-white/10 backdrop-blur-sm">
-                                        <div className="text-purple-500 mb-3 md:mb-4">
-                                            <BookmarkIcon className="h-6 w-6 md:h-8 md:w-8" />
+                                    <div className="bg-white/5 p-6 rounded-2xl border border-white/10 backdrop-blur-sm">
+                                        <div className="text-purple-500 mb-4">
+                                            <BookmarkIcon className="h-8 w-8" />
                                         </div>
-                                        <h3 className="text-base md:text-lg font-semibold mb-1 md:mb-2">Market Sentiment</h3>
-                                        <p className="text-sm md:text-base text-white/70">Understand market sentiment and trading signals</p>
+                                        <h3 className="text-lg font-semibold mb-2">Market Sentiment</h3>
+                                        <p className="text-white/70">Understand market sentiment and trading signals</p>
                                     </div>
-                                    <div className="bg-white/5 p-4 md:p-6 rounded-xl md:rounded-2xl border border-white/10 backdrop-blur-sm">
-                                        <div className="text-green-500 mb-3 md:mb-4">
-                                            <Newspaper className="h-6 w-6 md:h-8 md:w-8" />
+                                    <div className="bg-white/5 p-6 rounded-2xl border border-white/10 backdrop-blur-sm">
+                                        <div className="text-green-500 mb-4">
+                                            <Newspaper className="h-8 w-8" />
                                         </div>
-                                        <h3 className="text-base md:text-lg font-semibold mb-1 md:mb-2">News Analysis</h3>
-                                        <p className="text-sm md:text-base text-white/70">Stay updated with latest market news and analysis</p>
+                                        <h3 className="text-lg font-semibold mb-2">News Analysis</h3>
+                                        <p className="text-white/70">Stay updated with latest market news and analysis</p>
                                     </div>
                                 </div>
                             </div>
