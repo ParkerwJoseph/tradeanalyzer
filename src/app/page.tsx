@@ -23,9 +23,9 @@ import { ScrollingQuestions } from '@/components/ScrollingQuestions'
 // Types
 interface StockData {
     ticker?: string;
-    price: {
+    price?: {
         current: number;
-        previousClose: number;
+        previousClose?: number;
         dayRange?: {
             low: number;
             high: number;
@@ -37,34 +37,31 @@ interface StockData {
         fiftyDayMA?: number;
         twoHundredDayMA?: number;
     };
-    technicalLevels: {
+    changes?: {
+        daily: string;
+        momentum?: string;
+        trendStrength?: string;
+    };
+    technicalLevels?: {
         fiftyDayMA: number;
         twoHundredDayMA: number;
         support: number;
         resistance: number;
     };
-    changes: {
-        daily: string;
-        momentum: string;
-        trendStrength: string;
-    };
-    tradingData: {
+    tradingData?: {
         volume: number;
         avgVolume: number;
         volumeRatio: number;
         beta?: number;
     };
-    valuationMetrics: {
+    valuationMetrics?: {
         marketCap: number;
         peRatio?: number;
         forwardPE?: number;
     };
-    dividend?: {
-        yield: string;
-        rate: string | number;
-    };
-    riskAnalysis?: {
-        riskToleranceScore?: number;
+    technicals?: {
+        rsi: number;
+        macd: { macd: number; signal: number };
     };
     options?: {
         putCallRatio: number;
@@ -75,6 +72,7 @@ interface StockData {
             puts: Array<OptionStrike>;
         };
     };
+    intent?: string;
 }
 
 interface ConversationMessage {
@@ -85,6 +83,11 @@ interface ConversationMessage {
     data?: Partial<StockData>;
     ticker?: string;
     intent?: string;
+    feedback?: {
+        type: 'up' | 'down';
+        note?: string;
+        timestamp: Date;
+    };
 }
 
 // Add this type for API errors
@@ -372,15 +375,13 @@ const StockDataDisplay = ({ data, analysis }: {
 
   return (
     <div className="font-mono whitespace-pre-wrap text-sm space-y-4">
-      <div className="text-yellow-400 font-bold mb-4">Analysis Results:</div>
-
       <div className="mb-4">
         <div className="text-blue-400 font-bold text-base md:text-lg">
           {data.ticker} ${data.price.current.toFixed(2)} ({data.changes.daily})
         </div>
       </div>
 
-      {/* TradingView Chart */}
+      {/* TradingView Chart - Now always shown */}
       <div className="h-[300px] md:h-[600px] w-full mb-6 bg-[#0F0F10] rounded-lg overflow-hidden border border-white/5">
         <MemoizedTradingViewChart 
           symbol={data.ticker} 
@@ -1003,39 +1004,53 @@ const ScrollingQuestionss = ({ onQuestionClick }: { onQuestionClick: (question: 
 
 // Add this new interface for the API response
 interface StockAnalysisResponse {
-  success: boolean;
-  data: {
-    ticker: string;
-    price: { current: number };
-    changes: { daily: string };
-    tradingData?: {
-      volume: number;
-      avgVolume: number;
-      volumeRatio: number;
+    success: boolean;
+    data: {
+        ticker: string;
+        price: {
+            current: number;
+            previousClose?: number;
+            dayRange?: {
+                low: number;
+                high: number;
+            };
+            fiftyTwoWeek?: {
+                low: number;
+                high: number;
+            };
+            fiftyDayMA?: number;
+            twoHundredDayMA?: number;
+        };
+        changes: {
+            daily: string;
+            momentum?: string;
+            trendStrength?: string;
+        };
+        tradingData?: {
+            volume: number;
+            avgVolume: number;
+            volumeRatio: number;
+            beta?: number;
+        };
+        valuationMetrics?: {
+            marketCap: number;
+            peRatio?: number;
+            forwardPE?: number;
+        };
+        technicals?: {
+            rsi: number;
+            macd: { macd: number; signal: number };
+        };
+        technicalLevels?: {
+            fiftyDayMA: number;
+            twoHundredDayMA: number;
+            support: number;
+            resistance: number;
+        };
     };
-    options?: {
-      putCallRatio: number;
-      callVolume: number;
-      putVolume: number;
-      unusualStrikes?: {
-        calls: Array<OptionStrike>;
-        puts: Array<OptionStrike>;
-      };
-    };
-    technicals?: {
-      rsi: number;
-      macd: { macd: number; signal: number };
-    };
-    technicalLevels?: {
-      fiftyDayMA: number;
-      twoHundredDayMA: number;
-      support: number;
-      resistance: number;
-    };
-  };
-  answer: string;
-  message?: string;
-}
+    answer: string;
+    message?: string;
+};
 
 // Update the queryAI function with better error handling
 const queryAI = async (input: string): Promise<StockAnalysisResponse> => {
@@ -1080,54 +1095,105 @@ const queryAI = async (input: string): Promise<StockAnalysisResponse> => {
 
 // Add improved ticker extraction function
 const extractTickerFromText = (text: string): string | null => {
-  // Common stock tickers
-  const commonTickers = new Map([
-    ['apple', 'AAPL'],
-    ['microsoft', 'MSFT'],
-    ['google', 'GOOGL'],
-    ['amazon', 'AMZN'],
-    ['tesla', 'TSLA'],
-    ['meta', 'META'],
-    ['facebook', 'META'],
-    ['netflix', 'NFLX'],
-    ['nvidia', 'NVDA']
-  ]);
+    // Common company name to ticker mappings
+    const companyToTicker = new Map([
+        ['apple', 'AAPL'],
+        ['microsoft', 'MSFT'],
+        ['google', 'GOOGL'],
+        ['alphabet', 'GOOGL'],
+        ['amazon', 'AMZN'],
+        ['tesla', 'TSLA'],
+        ['meta', 'META'],
+        ['facebook', 'META'],
+        ['netflix', 'NFLX'],
+        ['nvidia', 'NVDA'],
+        ['amd', 'AMD'],
+        ['intel', 'INTC'],
+        ['coca cola', 'KO'],
+        ['coke', 'KO'],
+        ['disney', 'DIS'],
+        ['walmart', 'WMT'],
+        ['nike', 'NKE'],
+        ['mcdonalds', 'MCD'],
+        ['boeing', 'BA'],
+        ['visa', 'V'],
+        ['mastercard', 'MA'],
+        ['paypal', 'PYPL'],
+        ['bank of america', 'BAC'],
+        ['jpmorgan', 'JPM'],
+        ['goldman sachs', 'GS'],
+        ['morgan stanley', 'MS']
+    ]);
 
-  // First, check for company names
-  const lowercaseText = text.toLowerCase();
-  for (const [company, ticker] of commonTickers.entries()) {
-    if (lowercaseText.includes(company)) {
-      return ticker;
+    // First check for company names
+    const lowercaseInput = text.toLowerCase();
+    for (const [company, ticker] of companyToTicker.entries()) {
+        if (lowercaseInput.includes(company)) {
+            return ticker;
+        }
     }
-  }
 
-  // Then try different patterns
-  const patterns = [
-    /\$([A-Za-z]{1,5})\b/i,                                    // $TICK
-    /\b([A-Za-z]{1,5}):([A-Za-z]+)\b/i,                       // TICK:EXCHANGE
-    /\b(?:of|for|in|about|analyze|check)\s+([A-Za-z]{1,5})\b/i,  // Common phrases
-    /\b([A-Za-z]{1,5})\s+(?:stock|share|price|analysis)\b/i,  // TICK stock/share
-    /\b([A-Za-z]{1,5})\b/                                     // Standalone ticker
-  ];
+    // Common patterns for ticker symbols
+    const patterns = [
+        // $TICKER format
+        /\$([A-Za-z]{1,5})\b/,
+        // "about TICKER" format
+        /\babout\s+(\$?[A-Za-z]{1,5})\b/i,
+        // "for TICKER" format
+        /\bfor\s+(\$?[A-Za-z]{1,5})\b/i,
+        // "TICKER stock" format
+        /\b([A-Za-z]{1,5})\s+stock\b/i,
+        // "TICKER price" format
+        /\b([A-Za-z]{1,5})\s+(?:price|share|shares)\b/i,
+        // "analyze TICKER" format
+        /\banalyze\s+(\$?[A-Za-z]{1,5})\b/i,
+        // "how is TICKER" format
+        /\bhow\s+(?:is|are)\s+(\$?[A-Za-z]{1,5})\b/i,
+        // "what about TICKER" format
+        /\bwhat\s+about\s+(\$?[A-Za-z]{1,5})\b/i,
+        // "tell me about TICKER" format
+        /\btell\s+me\s+about\s+(\$?[A-Za-z]{1,5})\b/i,
+        // "TICKER analysis" format
+        /\b([A-Za-z]{1,5})\s+analysis\b/i,
+        // "TICKER company" format
+        /\b([A-Za-z]{1,5})\s+company\b/i,
+        // Standalone ticker (only if 1-5 capital letters)
+        /\b([A-Z]{1,5})\b/
+    ];
 
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    if (match && match[1]) {
-      const potential = match[1].toUpperCase();
-      // Basic validation: must be 1-5 characters, all letters
-      if (/^[A-Z]{1,5}$/.test(potential) && !['A', 'I', 'OF', 'FOR', 'IN', 'THE', 'AND'].includes(potential)) {
-        return potential;
-      }
+    // Try each pattern in order
+    for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+            const ticker = match[1].replace('$', '').toUpperCase();
+            // Filter out common English words that might be mistaken for tickers
+            if (!['A', 'I', 'OF', 'FOR', 'IN', 'THE', 'AND', 'OR', 'AT', 'BE', 'TO', 'IT'].includes(ticker)) {
+                return ticker;
+            }
+        }
     }
-  }
 
-  return null;
+    // If no match found, try to find any word that looks like a ticker
+    const words = text.split(/\s+/);
+    for (const word of words) {
+        // Check if word is 1-5 letters and contains only letters
+        if (/^[A-Za-z]{1,5}$/.test(word) && !['A', 'I', 'OF', 'FOR', 'IN', 'THE', 'AND', 'OR', 'AT', 'BE', 'TO', 'IT'].includes(word.toUpperCase())) {
+            return word.toUpperCase();
+        }
+    }
+
+    return null;
 };
 
 // Add FeedbackType enum at the top of the file with other types
 type FeedbackType = 'up' | 'down';
 
-const FeedbackButtons = ({ messageId, question, answer }: { messageId: string, question: string, answer: string }) => {
+const FeedbackButtons = ({ messageId, question, answer, setMessages }: { 
+  messageId: string, 
+  question: string, 
+  answer: string,
+  setMessages: React.Dispatch<React.SetStateAction<ConversationMessage[]>>
+}) => {
   const [feedback, setFeedback] = useState<FeedbackType | null>(null);
   const [showFeedbackInput, setShowFeedbackInput] = useState(false);
   const [feedbackNote, setFeedbackNote] = useState('');
@@ -1153,28 +1219,46 @@ const FeedbackButtons = ({ messageId, question, answer }: { messageId: string, q
   const submitFeedback = async (type: FeedbackType, note?: string) => {
     try {
       const uid = Cookies.get('uid');
-      if (!uid) return;
-
+      
+      // Store feedback in the message state
       const feedbackData = {
-        timestamp: new Date().toISOString(),
         type,
-        question: question || 'No question provided',
-        answer: answer || 'No answer provided',
-        feedbackNote: note || '',
-        needsReview: type === 'down',
-        reviewed: false
+        note: note || '',
+        timestamp: new Date(),
       };
 
-      const feedbackRef = ref(database, `feedback/${uid}/${messageId}`);
-      await set(feedbackRef, feedbackData);
+      // Update the message in the messages state
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+          msg.id === messageId 
+            ? { ...msg, feedback: feedbackData }
+            : msg
+        )
+      );
 
-      if (type === 'down' && note) {
-        const reviewRef = ref(database, `reviews/pending/${messageId}`);
-        await set(reviewRef, {
-          ...feedbackData,
-          userId: uid,
-          status: 'pending'
-        });
+      // If user is logged in, also store in database
+      if (uid) {
+        const dbFeedbackData = {
+          timestamp: new Date().toISOString(),
+          type,
+          question: question || 'No question provided',
+          answer: answer || 'No answer provided',
+          feedbackNote: note || '',
+          needsReview: type === 'down',
+          reviewed: false
+        };
+
+        const feedbackRef = ref(database, `feedback/${uid}/${messageId}`);
+        await set(feedbackRef, dbFeedbackData);
+
+        if (type === 'down' && note) {
+          const reviewRef = ref(database, `reviews/pending/${messageId}`);
+          await set(reviewRef, {
+            ...dbFeedbackData,
+            userId: uid,
+            status: 'pending'
+          });
+        }
       }
 
       setShowFeedbackInput(false);
@@ -1190,7 +1274,7 @@ const FeedbackButtons = ({ messageId, question, answer }: { messageId: string, q
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 mt-2">
+      <div className="flex items-center gap-2">
         <button
           onClick={() => handleFeedback('up')}
           disabled={feedback !== null}
@@ -1327,14 +1411,14 @@ const SignupModal = ({ isOpen, onClose, message }: SignupModalProps) => {
                 <div className="space-y-2">
                     <Button 
                         className="w-full"
-                        onClick={() => window.location.href = '/signup'}
+                        onClick={() => window.location.href = '/auth/signin'}
                     >
                         Create Account
                     </Button>
                     <Button 
                         variant="ghost" 
                         className="w-full"
-                        onClick={() => window.location.href = '/login'}
+                        onClick={() => window.location.href = '/auth/signin'}
                     >
                         Already have an account? Log in
                     </Button>
@@ -1378,7 +1462,7 @@ const StockGPTContent = () => {
         }
         return 0;
     });
-    const MAX_GUEST_QUESTIONS = 1;
+    const MAX_GUEST_QUESTIONS = 5;
 
     const tickerPatterns = {
         dollarSymbol: /\$([A-Za-z]{1,5})\b/,
@@ -1433,9 +1517,94 @@ const StockGPTContent = () => {
     };
 
     const extractTicker = (input: string): string | null => {
-        // Look for "about TICKER" pattern specifically
-        const match = input.match(/about\s+(\$?[A-Za-z]{1,5})/i);
-        return match ? match[1].replace('$', '').toUpperCase() : null;
+        // Common company name to ticker mappings
+        const companyToTicker = new Map([
+            ['apple', 'AAPL'],
+            ['microsoft', 'MSFT'],
+            ['google', 'GOOGL'],
+            ['alphabet', 'GOOGL'],
+            ['amazon', 'AMZN'],
+            ['tesla', 'TSLA'],
+            ['meta', 'META'],
+            ['facebook', 'META'],
+            ['netflix', 'NFLX'],
+            ['nvidia', 'NVDA'],
+            ['amd', 'AMD'],
+            ['intel', 'INTC'],
+            ['coca cola', 'KO'],
+            ['coke', 'KO'],
+            ['disney', 'DIS'],
+            ['walmart', 'WMT'],
+            ['nike', 'NKE'],
+            ['mcdonalds', 'MCD'],
+            ['boeing', 'BA'],
+            ['visa', 'V'],
+            ['mastercard', 'MA'],
+            ['paypal', 'PYPL'],
+            ['bank of america', 'BAC'],
+            ['jpmorgan', 'JPM'],
+            ['goldman sachs', 'GS'],
+            ['morgan stanley', 'MS']
+        ]);
+
+        // First check for company names
+        const lowercaseInput = input.toLowerCase();
+        for (const [company, ticker] of companyToTicker.entries()) {
+            if (lowercaseInput.includes(company)) {
+                return ticker;
+            }
+        }
+
+        // Common patterns for ticker symbols
+        const patterns = [
+            // $TICKER format
+            /\$([A-Za-z]{1,5})\b/,
+            // "about TICKER" format
+            /\babout\s+(\$?[A-Za-z]{1,5})\b/i,
+            // "for TICKER" format
+            /\bfor\s+(\$?[A-Za-z]{1,5})\b/i,
+            // "TICKER stock" format
+            /\b([A-Za-z]{1,5})\s+stock\b/i,
+            // "TICKER price" format
+            /\b([A-Za-z]{1,5})\s+(?:price|share|shares)\b/i,
+            // "analyze TICKER" format
+            /\banalyze\s+(\$?[A-Za-z]{1,5})\b/i,
+            // "how is TICKER" format
+            /\bhow\s+(?:is|are)\s+(\$?[A-Za-z]{1,5})\b/i,
+            // "what about TICKER" format
+            /\bwhat\s+about\s+(\$?[A-Za-z]{1,5})\b/i,
+            // "tell me about TICKER" format
+            /\btell\s+me\s+about\s+(\$?[A-Za-z]{1,5})\b/i,
+            // "TICKER analysis" format
+            /\b([A-Za-z]{1,5})\s+analysis\b/i,
+            // "TICKER company" format
+            /\b([A-Za-z]{1,5})\s+company\b/i,
+            // Standalone ticker (only if 1-5 capital letters)
+            /\b([A-Z]{1,5})\b/
+        ];
+
+        // Try each pattern in order
+        for (const pattern of patterns) {
+            const match = input.match(pattern);
+            if (match) {
+                const ticker = match[1].replace('$', '').toUpperCase();
+                // Filter out common English words that might be mistaken for tickers
+                if (!['A', 'I', 'OF', 'FOR', 'IN', 'THE', 'AND', 'OR', 'AT', 'BE', 'TO', 'IT'].includes(ticker)) {
+                    return ticker;
+                }
+            }
+        }
+
+        // If no match found, try to find any word that looks like a ticker
+        const words = input.split(/\s+/);
+        for (const word of words) {
+            // Check if word is 1-5 letters and contains only letters
+            if (/^[A-Za-z]{1,5}$/.test(word) && !['A', 'I', 'OF', 'FOR', 'IN', 'THE', 'AND', 'OR', 'AT', 'BE', 'TO', 'IT'].includes(word.toUpperCase())) {
+                return word.toUpperCase();
+            }
+        }
+
+        return null;
     };
 
     // Update the handleError function with Axios error type
@@ -1538,50 +1707,53 @@ const StockGPTContent = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!input.trim() || isLoading) return;
-        
-        // Check auth before proceeding
-        if (!checkAuthAndIncrementCount()) {
-            return;
-        }
-        
-        try {
-            setIsLoading(true);
-            addMessage('user', input);
 
-            const response = await queryAI(input);
-            
-            if (response.data) {
-                const stockData: Partial<StockData> = {
-                    ticker: response.data.ticker || 'UNKNOWN',
-                    price: {
-                        current: response.data.price?.current || 0,
-                        previousClose: response.data.price?.current || 0
-                    },
-                    changes: {
-                        daily: response.data.changes?.daily || '0%',
-                        momentum: 'N/A',
-                        trendStrength: 'N/A'
-                    },
-                    technicalLevels: {
-                        fiftyDayMA: response.data.technicalLevels?.fiftyDayMA || 0,
-                        twoHundredDayMA: response.data.technicalLevels?.twoHundredDayMA || 0,
-                        support: response.data.technicalLevels?.support || 0,
-                        resistance: response.data.technicalLevels?.resistance || 0
-                    },
-                    tradingData: {
-                        volume: response.data.tradingData?.volume || 0,
-                        avgVolume: response.data.tradingData?.avgVolume || 0,
-                        volumeRatio: response.data.tradingData?.volumeRatio || 1
-                    }
-                };
-                addMessage('data', '', stockData);
+        const userMessage = input.trim();
+        setInput('');
+        setIsLoading(true);
+
+        // Check if the user is signed in or if the guest question limit is reached
+        const uid = Cookies.get('uid');
+        if (!uid) {
+            if (guestQuestions >= MAX_GUEST_QUESTIONS) {
+                setShowSignupModal(true);
+                setIsLoading(false);
+                return;
             }
+            setGuestQuestions(prev => prev + 1);
+        }
+
+        try {
+            // Add user message
+            addMessage('user', userMessage);
             
+            // Add analyzing message
+            const analyzingId = generateId('msg');
+            setMessages(prev => [...prev, {
+                id: analyzingId,
+                type: 'system',
+                content: '🔍 Analyzing your question...',
+                timestamp: new Date()
+            }]);
+
+            // Get response from AI endpoint
+            const response = await queryAI(userMessage);
+            
+            if (!response.data?.ticker || response.data.ticker === 'UNKNOWN') {
+                // Remove analyzing message and add error
+                setMessages(prev => prev.filter(msg => msg.id !== analyzingId));
+                addMessage('error', 'No stock symbol was detected in your question. Please include a stock symbol (e.g., AAPL for Apple) in your question.');
+                setIsLoading(false);
+                return;
+            }
+
+            // Remove analyzing message
+            setMessages(prev => prev.filter(msg => msg.id !== analyzingId));
+            
+            // Add AI response
             if (response.answer) {
                 addMessage('system', response.answer);
             }
-            
-            setInput('');
         } catch (error) {
             console.error('Error:', error);
             const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
@@ -1729,10 +1901,42 @@ const StockGPTContent = () => {
     const getSignupModalContent = () => {
         const remainingQuestions = MAX_GUEST_QUESTIONS - guestQuestions;
         if (remainingQuestions <= 0) {
-            return "You've reached the limit for guest questions. Sign up to get:";
+            return "You've reached the limit of 5 free questions. Create an account to get unlimited access to:";
         }
-        return `You have ${remainingQuestions} questions remaining in guest mode. Sign up to get:`;
+        return `You have ${remainingQuestions} free ${remainingQuestions === 1 ? 'question' : 'questions'} remaining. Create an account to get unlimited access to:`;
     };
+
+    // Add a function to handle sign-in using the /auth/signin endpoint
+    const handleSignIn = async (email: string, password: string) => {
+        try {
+            const response = await axios.post('/auth/signin', {
+                email,
+                password
+            }, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.status === 200) {
+                // Handle successful sign-in, e.g., store token, redirect, etc.
+                const { token } = response.data;
+                Cookies.set('authToken', token);
+                // Redirect to home page or another page
+                router.push('/');
+            } else {
+                throw new Error('Sign-in failed. Please check your credentials.');
+            }
+        } catch (error) {
+            console.error('Sign-in error:', error);
+            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred during sign-in';
+            setError(errorMessage);
+        }
+    };
+
+    // Example usage of handleSignIn function
+    // Call this function when the user submits the sign-in form
+    // handleSignIn(userEmail, userPassword);
 
     return (
     <PageTemplate title="" description="">
@@ -1826,12 +2030,20 @@ const StockGPTContent = () => {
                                     >
                                         <div
                                             className={cn(
-                                                "max-w-[95%] md:max-w-[85%] rounded-2xl px-6 py-4 shadow-lg",
+                                                "relative max-w-[95%] md:max-w-[85%] rounded-2xl px-6 py-4 shadow-lg backdrop-blur-sm",
                                                 message.type === 'user'
-                                                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
-                                                    : "bg-white/5 text-white border border-white/10 backdrop-blur-sm"
+                                                    ? "bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 text-white shadow-blue-500/20"
+                                                    : message.type === 'error'
+                                                    ? "bg-red-500/10 border border-red-500/20 text-red-500"
+                                                    : "bg-white/[0.07] border border-white/10 text-white shadow-white/10"
                                             )}
                                         >
+                                            {message.type === 'user' && (
+                                                <div className="absolute -right-2 -top-2 h-4 w-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 ring-4 ring-[#0A0A0A]" />
+                                            )}
+                                            {message.type === 'system' && (
+                                                <div className="absolute -left-2 -top-2 h-4 w-4 rounded-full bg-white/10 ring-4 ring-[#0A0A0A]" />
+                                            )}
                                             <AnimatedMessage 
                                                 content={message.content} 
                                                 isNew={index === messages.length - 1 && message.type !== 'user'} 
@@ -1842,6 +2054,38 @@ const StockGPTContent = () => {
                                                     <StockDataDisplay 
                                                         data={message.data as any}
                                                         analysis={{ intent: message.intent || 'unknown' }}
+                                                    />
+                                                </div>
+                                            )}
+                                            {message.type === 'system' && (
+                                                <div className="mt-4 pt-4 border-t border-white/10">
+                                                    {message.feedback && (
+                                                        <div className={cn(
+                                                            "text-xs mb-2 flex items-center gap-2",
+                                                            message.feedback.type === 'up' ? "text-green-500" : "text-red-500"
+                                                        )}>
+                                                            <div className="flex items-center gap-1">
+                                                                {message.feedback.type === 'up' ? (
+                                                                    <ThumbsUp className="h-3 w-3 fill-current" />
+                                                                ) : (
+                                                                    <ThumbsDown className="h-3 w-3 fill-current" />
+                                                                )}
+                                                                <span>
+                                                                    {message.feedback.type === 'up' ? 'Helpful response' : 'Needs improvement'}
+                                                                </span>
+                                                            </div>
+                                                            {message.feedback.note && (
+                                                                <span className="text-white/70">
+                                                                    - {message.feedback.note}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    <FeedbackButtons
+                                                        messageId={message.id}
+                                                        question={messages[index - 1]?.type === 'user' ? messages[index - 1].content : ''}
+                                                        answer={message.content}
+                                                        setMessages={setMessages}
                                                     />
                                                 </div>
                                             )}
