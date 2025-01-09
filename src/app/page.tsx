@@ -19,6 +19,7 @@ import { ref, get, set } from 'firebase/database'
 import { database } from '@/lib/firebase'
 import { OpenAI } from 'openai'
 import { ScrollingQuestions } from '@/components/ScrollingQuestions'
+import Image from 'next/image'
 
 // Types
 interface StockData {
@@ -512,10 +513,12 @@ const NewsPanel = ({ ticker }: { ticker: string }) => {
                       <div className="flex gap-4">
                           {article.thumbnail && (
                               <div className="flex-shrink-0">
-                                  <img
+                                  <Image
                                       src={article.thumbnail}
                                       alt=""
-                                      className="w-20 h-20 object-cover rounded"
+                                      width={80}
+                                      height={80}
+                                      className="object-cover rounded"
                                   />
                               </div>
                           )}
@@ -1636,72 +1639,29 @@ const StockGPTContent = () => {
     // Modify the analyzeStock function to show news automatically
     const analyzeStock = async (ticker: string) => {
         try {
-            await trackTickerSearch(ticker);
+            const uid = Cookies.get('uid');
+            if (uid) {
+                await trackTickerSearch(uid, ticker);
+            }
             setCurrentTicker(ticker);
             setIsLoading(true);
             addMessage('system', `Analyzing ${ticker}...`);
 
-            // Get user's risk profile from Firebase
-            const uid = Cookies.get('uid');
-            if (uid) {
-                const userRef = ref(database, `users/${uid}/riskAnalysis`);
-                const snapshot = await get(userRef);
-                const riskProfile = snapshot.val();
-                
-                // Construct the URL with risk tolerance if available
-                const baseUrl = `https://us-central1-shopify-webscraper.cloudfunctions.net/app/analyzeStock?ticker=${ticker}&detailed=true`;
-                const url = riskProfile?.riskToleranceScore 
-                    ? `${baseUrl}&riskTolerance=${riskProfile.riskToleranceScore}&riskLevel=${riskProfile.riskLevel}`
-                    : baseUrl;
+            const response = await fetch(`/api/stock/${ticker}`);
+            const data = await response.json();
 
-                const response = await axios.get(url);
-
-                if (response.data.success) {
-                    const stockData = response.data.data;
-                    const technicalRiskScore = calculateTechnicalRiskScore(stockData);
-                    
-                    setMessages(prev => [
-                        ...prev.slice(0, -1),
-                        {
-                            id: generateId('data'),
-                            type: 'data' as const,
-                            content: `Here are the key metrics for ${ticker}:`,
-                            timestamp: new Date(),
-                            data: {
-                                ...stockData,
-                                ticker: ticker.toUpperCase(),
-                                riskAnalysis: {
-                                    ...riskProfile,
-                                    riskToleranceScore: technicalRiskScore,
-                                    technicalRiskLevel: technicalRiskScore > 7 ? 'High' : 
-                                                    technicalRiskScore > 4 ? 'Medium' : 'Low'
-                                }
-                            },
-                            ticker: ticker.toUpperCase()
-                        },
-                        {
-                            id: generateId('system'),
-                            type: 'system' as const,
-                            content: response.data.analysis,
-                            timestamp: new Date(),
-                            ticker: ticker.toUpperCase()
-                        }
-                    ].filter(msg => msg.content !== undefined));
-
-                    // Fetch similar tickers and show news
-                    const similarTickersData = await fetchSimilarTickers(ticker);
-                    setSimilarTickers(similarTickersData);
-                    setShowNews(true);
-                } else {
-                    throw new Error(response.data.message || 'Failed to analyze stock');
-                }
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to fetch stock data');
             }
-        } catch (error) {
-            console.error('Analysis error:', error);
-            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-            addMessage('error', `Error analyzing ${ticker}: ${errorMessage}`);
-        } finally {
+
             setIsLoading(false);
+            return data;
+        } catch (error) {
+            setIsLoading(false);
+            console.error('Error analyzing stock:', error);
+            const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+            addMessage('error', errorMessage);
+            return null;
         }
     };
 

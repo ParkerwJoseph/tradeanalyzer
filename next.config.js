@@ -1,10 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
-  swcMinify: true,
+  images: {
+    domains: ['lh3.googleusercontent.com', 'firebasestorage.googleapis.com'],
+  },
   experimental: {
-    appDir: true
-  }
+    // Remove appDir as it's no longer needed in Next.js 13+
+  },
+  // Remove swcMinify as it's now enabled by default
 }
 
 module.exports = nextConfig 

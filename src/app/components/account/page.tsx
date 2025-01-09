@@ -14,6 +14,7 @@ import { ref, update, onValue, get } from 'firebase/database'
 import { storage } from '@/lib/firebase'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import TradingAnalyzer from '@/components/TradingAnalyzer'
+import Image from 'next/image'
 
 interface UserProfile {
   subscriptionType: 'free' | 'premium' | 'enterprise';
@@ -165,17 +166,13 @@ export default function AccountPage() {
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
                   </div>
                 )}
-                {user?.photoURL ? (
-                  <img 
-                    src={user.photoURL} 
-                    alt="Profile" 
-                    className="h-20 w-20 rounded-full object-cover group-hover:opacity-80 transition-opacity"
-                  />
-                ) : (
-                  <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center group-hover:opacity-80 transition-opacity">
-                    <User className="h-10 w-10" />
-                  </div>
-                )}
+                <Image
+                  src={user?.photoURL || '/default-avatar.png'}
+                  alt="Profile"
+                  width={100}
+                  height={100}
+                  className="rounded-full"
+                />
                 <input
                   ref={fileInputRef}
                   type="file"
