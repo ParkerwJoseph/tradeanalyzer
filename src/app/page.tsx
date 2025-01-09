@@ -1388,7 +1388,23 @@ interface SignupModalProps {
 
 // Add the SignupModal component
 const SignupModal = ({ isOpen, onClose, message }: SignupModalProps) => {
+    const router = useRouter();
+
     if (!isOpen) return null;
+
+    const handleSignIn = () => {
+        // Close the modal
+        onClose();
+        // Redirect to the StocX auth handler
+        window.location.href = 'https://www.stocx.co/__/auth/handler';
+    };
+
+    const handleCreateAccount = () => {
+        // Close the modal
+        onClose();
+        // Redirect to the StocX auth handler
+        window.location.href = 'https://www.stocx.co/__/auth/handler';
+    };
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -1411,14 +1427,14 @@ const SignupModal = ({ isOpen, onClose, message }: SignupModalProps) => {
                 <div className="space-y-2">
                     <Button 
                         className="w-full"
-                        onClick={() => window.location.href = '/auth/signin'}
+                        onClick={handleCreateAccount}
                     >
                         Create Account
                     </Button>
                     <Button 
                         variant="ghost" 
                         className="w-full"
-                        onClick={() => window.location.href = '/auth/signin'}
+                        onClick={handleSignIn}
                     >
                         Already have an account? Log in
                     </Button>

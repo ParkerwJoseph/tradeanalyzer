@@ -76,46 +76,32 @@ export const initializeUserData = async (uid: string) => {
   }
 };
 
+// Add a helper function to create safe timestamp keys
+const createSafeTimestamp = () => {
+  return new Date().getTime().toString();
+};
+
 export const trackUserQuestion = async (uid: string, question: string) => {
   try {
-    const userRef = ref(database, `users/${uid}`);
-    const snapshot = await get(userRef);
-    const userData = snapshot.val() || {};
-    
-    const updatedData = {
-      questionCount: (userData.questionCount || 0) + 1,
-      questionHistory: [
-        ...(userData.questionHistory || []),
-        {
-          question,
-          timestamp: Date.now()
-        }
-      ]
-    };
-
-    await update(userRef, updatedData);
-    await logUserActivity(uid, 'QUESTION_ASKED', { question });
+    const timestamp = createSafeTimestamp();
+    const questionRef = ref(database, `users/${uid}/questions/${timestamp}`);
+    await set(questionRef, {
+      question,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
-    console.error('Error tracking question:', error);
-    throw error;
+    console.error('Error tracking user question:', error);
   }
 };
 
-export const logUserActivity = async (uid: string, action: string, details?: any) => {
+export const logUserActivity = async (uid: string, activity: string) => {
   try {
-    const logsRef = ref(database, 'user_logs');
-    const newLogRef = push(logsRef);
-    
-    const logData = {
-      uid,
-      action,
-      timestamp: new Date().toISOString(),
-      details: details || {},
-      userAgent: navigator.userAgent
-    };
-
-    await set(newLogRef, logData);
-    console.log(`Logged activity for user ${uid}:`, action);
+    const timestamp = createSafeTimestamp();
+    const activityRef = ref(database, `users/${uid}/activity/${timestamp}`);
+    await set(activityRef, {
+      activity,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Error logging user activity:', error);
   }
@@ -136,23 +122,15 @@ export const getUserData = async (uid: string): Promise<UserData | null> => {
   }
 };
 
-export const saveConversation = async (uid: string, messages: any[], title: string) => {
+export const saveConversation = async (uid: string, conversationId: string, messages: any[]) => {
   try {
-    const conversationRef = ref(database, `users/${uid}/conversations`);
-    const newConvRef = push(conversationRef);
-    
-    const conversation: Conversation = {
-      id: newConvRef.key!,
-      title,
+    const conversationRef = ref(database, `users/${uid}/conversations/${conversationId}`);
+    await set(conversationRef, {
       messages,
-      createdAt: Date.now()
-    };
-
-    await set(newConvRef, conversation);
-    return conversation.id;
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Error saving conversation:', error);
-    throw error;
   }
 };
 
@@ -193,27 +171,14 @@ export const getConversations = async (uid: string) => {
   }
 };
 
-export const trackTickerSearch = async (ticker: string) => {
-  if (!ticker) return;
-  
+export const trackTickerSearch = async (uid: string, ticker: string) => {
   try {
-    console.log('Tracking search for ticker:', ticker);
-    
-    const tickerRef = ref(database, `symbols/${ticker.toUpperCase()}`);
-    const snapshot = await get(tickerRef);
-    const currentData = snapshot.val();
-    const currentSearches = currentData?.searches || 0;
-    
-    const newData = {
-      ticker: ticker.toUpperCase(),
-      searches: currentSearches + 1,
-      lastSearched: Date.now()
-    };
-    
-    console.log('Saving data:', newData);
-    await set(tickerRef, newData);
-    
-    console.log('Search tracked successfully');
+    const timestamp = createSafeTimestamp();
+    const searchRef = ref(database, `users/${uid}/searches/${timestamp}`);
+    await set(searchRef, {
+      ticker,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Error tracking ticker search:', error);
   }

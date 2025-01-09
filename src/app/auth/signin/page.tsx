@@ -58,7 +58,7 @@ export default function AuthPage() {
         await logUserActivity(user.uid, 'LOGIN_GOOGLE');
         const success = await initializeUserData(user.uid);
         if (success) {
-          router.push('/components/stock-gpt');
+          router.push('/');
         }
       }
     } catch (error: any) {
@@ -96,7 +96,7 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>{isSignUp ? 'Create Account' : 'Sign In'}</CardTitle>

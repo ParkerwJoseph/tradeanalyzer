@@ -1,31 +1,27 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getAuth } from 'firebase/auth';
-import { getDatabase } from 'firebase/database';
-import { getStorage } from 'firebase/storage'
-
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getDatabase } from "firebase/database";
+import { getAuth } from "firebase/auth";
 
 // Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyAOUFI_qiOusPnhIaN1w2r-zDb1JDnBg3k",
-  authDomain: "shopify-webscraper.firebaseapp.com",
-  databaseURL: "https://shopify-webscraper-default-rtdb.firebaseio.com",
-  projectId: "shopify-webscraper",
-  storageBucket: "shopify-webscraper.appspot.com",
-  messagingSenderId: "183674215962",
-  appId: "1:183674215962:web:8d6472a0533a721cb37ba3",
-  measurementId: "G-1LSFHYVQ2X"
+  apiKey: "AIzaSyBs0Fl4NXkUj6YjQsmjLURhyVRCZH1KDLs",
+  authDomain: "stocx-co.firebaseapp.com",
+  databaseURL: "https://stocx-co-default-rtdb.firebaseio.com",
+  projectId: "stocx-co",
+  storageBucket: "stocx-co.firebasestorage.app",
+  messagingSenderId: "549556759580",
+  appId: "1:549556759580:web:91848001343e8862a1c3d9",
+  measurementId: "G-JSN9R8LET5"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
-const auth = getAuth(app);
-const database = getDatabase(app);
-const storage = getStorage(app)
 
-export { auth, database, storage };
+// Initialize services
+const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
+const database = getDatabase(app);
+const auth = getAuth(app);
+
+export { app, analytics, database, auth };
